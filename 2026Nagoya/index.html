@@ -61,6 +61,8 @@ body[data-opt="s"]{background:#F6F3FA;}
   margin-top:2px;
 }
 .hero-sub{margin:6px 0 0;color:var(--muted);font-size:13px;}
+.hero-video{max-width:740px;margin:16px auto 0;padding:0 16px;}
+.hero-video video{display:block;width:100%;border-radius:18px;border:1px solid #EAE2D1;box-shadow:0 10px 26px -14px rgba(60,50,30,.3);background:#000;}
 
 /* ---------- 當天怎麼選 ---------- */
 .helper{
@@ -303,6 +305,12 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:34px 16px 14p
   <h1>名古屋 行程表<small>8/20 – 8/24 ・ DAY 0 – 4</small></h1>
   <p class="hero-sub">8/20（四）出發～8/24（一）回程・住名古屋萬豪 Associa</p>
 </header>
+
+<div class="hero-video">
+  <video controls autoplay muted loop playsinline onerror="this.parentElement.style.display='none'">
+    <source src="MOVIE.mp4" type="video/mp4" onerror="this.parentElement.parentElement.style.display='none'">
+  </video>
+</div>
 
 <div class="wrap">
 
