@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>班班背生字</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="班班背生字">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F1F5EC">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+Mono+TC&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F1F5EC;
+  --card:#FFFFFF;
+  --ink:#1F3B30;
+  --ink-2:#5F7268;
+  --line:#C6D5CA;
+  --line-2:#E2EAE3;
+  --accent:#2F6F5E;
+  --accent-ink:#FFFFFF;
+  --grid:#D9463B;
+  --ok:#2C8C5A;
+  --bad:#C93D2E;
+  --chip:#E7F0E9;
+  --shadow:0 8px 24px rgba(31,59,48,.10);
+  --kai:"DFKai-SB","BiauKai","標楷體","TW-Kai","AR PL UKai TW","LXGW WenKai TC","LXGW WenKai Mono TC","KaiTi","STKaiti",serif;
+  --content:"LXGW WenKai TC","LXGW WenKai Mono TC","DFKai-SB","BiauKai","標楷體","TW-Kai","KaiTi",serif;
+  --ui:-apple-system,"PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#131D17; --card:#1B2922; --ink:#E7EFE9; --ink-2:#9DB2A6; --line:#33473C; --line-2:#263A2F;
+    --accent:#5FB69C; --accent-ink:#0E1A14; --grid:#E5695E; --ok:#5DC48A; --bad:#F07F70; --chip:#24352C;
+    --shadow:0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#131D17; --card:#1B2922; --ink:#E7EFE9; --ink-2:#9DB2A6; --line:#33473C; --line-2:#263A2F;
+  --accent:#5FB69C; --accent-ink:#0E1A14; --grid:#E5695E; --ok:#5DC48A; --bad:#F07F70; --chip:#24352C;
+  --shadow:0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:17px;line-height:1.5;min-height:100vh;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea{min-height:120px;resize:vertical;line-height:1.6}
+h1,h2,h3{margin:0;font-weight:700;line-height:1.25}
+p{margin:0}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:6px;padding:12px 16px;max-width:1080px;margin:0 auto}
+.top>*{white-space:nowrap;flex:none}
+.top h1{font-size:20px;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:600px){.top h1 small{display:none}.top{padding:10px 12px}}
+.top h1 small{font-weight:400;color:var(--ink-2);font-size:14px;margin-left:8px}
+.ghost{padding:8px 12px;border-radius:10px;color:var(--ink-2)}
+.ghost:hover{background:var(--chip);color:var(--ink)}
+.tally{display:flex;gap:10px;font-variant-numeric:tabular-nums;font-weight:600}
+.tally .ok{color:var(--ok)} .tally .bad{color:var(--bad)}
+.banner{max-width:1080px;margin:0 auto;padding:0 16px 8px;color:var(--ink-2);font-size:14px}
+
+main{max-width:1080px;margin:0 auto;padding:0 16px 48px}
+.screen{animation:none}
+
+/* generic */
+.card{background:var(--card);border:1.5px solid var(--line-2);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 22px;border-radius:14px;font-weight:700;font-size:18px;background:var(--chip);color:var(--ink);transition:transform .08s ease,filter .12s ease}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.ok{background:var(--ok);color:#fff}
+.btn.bad{background:var(--bad);color:#fff}
+.btn.big{min-height:64px;font-size:22px;padding:0 32px}
+.btn:disabled{opacity:.5;cursor:default;transform:none}
+.btn.small{min-height:38px;font-size:15px;padding:0 14px;border-radius:10px;font-weight:600}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--ink-2);font-size:14px}
+.stack{display:flex;flex-direction:column;gap:14px}
+
+/* ---- pick screen ---- */
+.pick{display:grid;gap:18px;grid-template-columns:1fr;max-width:640px;margin:8px auto 0}
+.lesson-list{display:flex;flex-direction:column;gap:8px}
+.lesson-item{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line-2);background:var(--card);cursor:pointer;user-select:none}
+.lesson-item.on{border-color:var(--accent);background:var(--chip)}
+.lesson-item .box{width:26px;height:26px;border-radius:8px;border:2px solid var(--line);display:grid;place-items:center;flex:none;color:var(--accent-ink);background:var(--card)}
+.lesson-item.on .box{background:var(--accent);border-color:var(--accent)}
+.lesson-item .name{flex:1;font-family:var(--content);font-size:20px}
+.lesson-item .count{color:var(--ink-2);font-size:14px;font-variant-numeric:tabular-nums}
+.mode{display:grid;gap:8px}
+.mode label{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line-2);background:var(--card);cursor:pointer}
+.mode label.on{border-color:var(--accent);background:var(--chip)}
+.mode input{width:auto;margin-top:5px;accent-color:var(--accent)}
+.mode b{display:block}
+.empty{padding:28px 20px;text-align:center;color:var(--ink-2);border:2px dashed var(--line);border-radius:18px}
+.idle-card{min-height:220px;display:grid;place-items:center;font-family:var(--content);font-size:22px}
+@media (max-width:859px){.idle-card{display:none}}
+
+/* ---- play screen ---- */
+.play{display:grid;gap:20px;grid-template-columns:1fr;align-items:start;margin-top:4px}
+@media (min-width:860px){.play{grid-template-columns:420px 1fr;gap:32px}}
+.wheel-wrap{display:flex;flex-direction:column;align-items:center;gap:16px}
+.wheel-stage{position:relative;width:min(78vw,380px);aspect-ratio:1;transition:width .35s ease}
+@media (max-width:859px){.play.has-q .wheel-stage{width:min(46vw,230px)}.play.has-q #btnSpin{min-height:46px;font-size:17px;padding:0 20px}}
+.wheel-stage svg.wheel{width:100%;height:100%;display:block;filter:drop-shadow(0 10px 18px rgba(0,0,0,.18))}
+#wheelG{transform-origin:200px 200px}
+.pointer{position:absolute;left:50%;top:-14px;transform:translateX(-50%);width:34px;height:44px;z-index:2;transform-origin:50% 20%}
+.pointer.tick{animation:wob .12s ease-out}
+@keyframes wob{0%{transform:translateX(-50%) rotate(0)}40%{transform:translateX(-50%) rotate(-16deg)}100%{transform:translateX(-50%) rotate(0)}}
+.wheel-num{font-family:var(--content);font-weight:700;fill:#fff;font-size:30px;paint-order:stroke;stroke:rgba(0,0,0,.25);stroke-width:1.5px}
+.hint{color:var(--ink-2);font-size:15px;text-align:center;min-height:22px}
+
+.qcard{position:relative;padding:24px 22px 22px}
+.qcard .lesson-tag{color:var(--ink-2);font-size:14px;margin-bottom:10px}
+.sentence{font-family:var(--content);font-size:clamp(26px,4.2vw,36px);line-height:1.7;letter-spacing:.02em;overflow-wrap:anywhere}
+.zy{display:inline-block;padding:0 .3em;margin:0 .1em;border-radius:.35em;background:var(--chip);color:var(--accent);font-weight:700;border-bottom:3px solid var(--accent)}
+.zy-line{font-family:var(--content);font-size:clamp(24px,4vw,32px);color:var(--accent);letter-spacing:.06em;margin-top:6px}
+.filled{color:var(--grid);font-family:var(--kai);font-weight:700}
+.answer{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:20px 0 8px}
+.tian{position:relative;width:clamp(96px,22vw,150px);aspect-ratio:1;border:2.5px solid var(--grid);border-radius:6px;display:grid;place-items:center;background:var(--card)}
+.tian::before,.tian::after{content:"";position:absolute;background:repeating-linear-gradient(90deg,var(--grid) 0 6px,transparent 6px 12px);opacity:.45}
+.tian::before{left:6%;right:6%;top:50%;height:1.5px}
+.tian::after{top:6%;bottom:6%;left:50%;width:1.5px;background:repeating-linear-gradient(180deg,var(--grid) 0 6px,transparent 6px 12px)}
+.answer.n4{gap:8px}
+.answer.n4 .tian{width:clamp(66px,16vw,118px)}
+.answer.n4 .tian span{font-size:clamp(46px,11vw,86px)}
+.tian span{position:relative;font-family:var(--kai);font-size:clamp(66px,15vw,108px);line-height:1;color:var(--ink);animation:pop .28s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+.judge{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+.stat-line{text-align:center;margin-top:12px}
+.edit-btn{position:absolute;right:12px;top:12px}
+.editor{margin-top:12px;display:grid;gap:8px}
+.flash{text-align:center;font-family:var(--content);font-size:28px;padding:30px 0;animation:pop .3s ease both}
+
+/* ---- admin ---- */
+.admin{display:grid;gap:20px;grid-template-columns:1fr;margin-top:4px}
+@media (min-width:860px){.admin{grid-template-columns:280px 1fr;align-items:start}}
+.lesson-nav{display:flex;flex-direction:column;gap:6px}
+.lesson-nav button{text-align:left;padding:10px 12px;border-radius:10px;font-family:var(--content);font-size:19px;display:flex;justify-content:space-between;gap:8px}
+.lesson-nav button.on{background:var(--chip);color:var(--accent);font-weight:700}
+.lesson-nav button small{font-family:var(--ui);color:var(--ink-2);font-size:13px}
+.words{width:100%;border-collapse:collapse;font-size:16px}
+.words th{text-align:left;font-weight:600;color:var(--ink-2);font-size:13px;padding:6px 8px;border-bottom:1.5px solid var(--line)}
+.words td{padding:8px;border-bottom:1px solid var(--line-2);vertical-align:top}
+.words td.w{font-family:var(--content);font-size:20px;white-space:nowrap}
+.words td.z{font-family:var(--content);font-size:18px;color:var(--accent);white-space:nowrap}
+.words td.s{font-family:var(--content);font-size:17px}
+.words td.n{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ink-2);font-size:14px}
+.words td.a{white-space:nowrap;text-align:right}
+.words input{padding:6px 8px;border-radius:8px}
+.icon{padding:6px 8px;border-radius:8px;color:var(--ink-2)}
+.icon:hover{background:var(--chip);color:var(--ink)}
+.form3{display:grid;gap:8px;grid-template-columns:1fr}
+@media (min-width:640px){.form3{grid-template-columns:1.1fr 1.3fr 2.4fr auto}}
+.form3 label{display:grid;gap:4px;font-size:13px;color:var(--ink-2)}
+details{border:1.5px solid var(--line-2);border-radius:14px;padding:12px 16px}
+summary{cursor:pointer;font-weight:600}
+details .stack{margin-top:12px}
+.danger{color:var(--bad)}
+.tag{display:inline-block;padding:2px 8px;border-radius:8px;background:var(--chip);color:var(--ink-2);font-size:13px}
+.tag.cloud{color:var(--accent);font-weight:600}
+.sync-status{font-size:14px;color:var(--ink-2)}
+.sync-status.err{color:var(--bad)}
+.lesson-nav button .src{font-family:var(--ui);font-size:12px;color:var(--accent)}
+@media (prefers-reduced-motion: reduce){
+  .wheel-stage,.btn,.tian span,.flash{transition:none;animation:none}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <button id="btnBack" class="ghost" hidden>‹ 回選課</button>
+  <h1 id="title">班班背生字<small id="subtitle"></small></h1>
+  <div id="tally" class="tally" hidden><span class="ok">✓ <b id="tOk">0</b></span><span class="bad">✗ <b id="tBad">0</b></span></div>
+  <button id="btnSound" class="ghost" title="音效">🔊</button>
+  <button id="btnAdmin" class="ghost">家長設定</button>
+</header>
+<div id="banner" class="banner" hidden></div>
+
+<main>
+  <!-- 選課 -->
+  <section id="scrPick" class="screen pick">
+    <div class="card stack">
+      <div class="row" style="justify-content:space-between">
+        <h2>要練哪幾課？</h2>
+        <div class="row">
+          <button class="btn small" id="pickAll">全選</button>
+          <button class="btn small" id="pickNone">清除</button>
+        </div>
+      </div>
+      <div id="lessonList" class="lesson-list"></div>
+    </div>
+    <div class="card stack">
+      <h2>怎麼出題？</h2>
+      <div class="mode" id="modeBox">
+        <label class="on"><input type="radio" name="mode" value="weighted" checked><span><b>照紀錄調整</b><span class="muted">答錯多的詞會常出現，答對多的就少出現。</span></span></label>
+        <label><input type="radio" name="mode" value="uniform"><span><b>完全隨機</b><span class="muted">每個詞機會一樣；答對答錯一樣會記下來。</span></span></label>
+      </div>
+      <button class="btn primary big" id="btnStart">開始練習</button>
+      <p class="muted" id="pickSummary"></p>
+      <p class="sync-status" id="pickSync" hidden></p>
+    </div>
+  </section>
+
+  <!-- 練習 -->
+  <section id="scrPlay" class="screen play" hidden>
+    <div class="wheel-wrap">
+      <div class="wheel-stage">
+        <svg class="pointer" id="pointer" viewBox="0 0 34 44" aria-hidden="true">
+          <path d="M17 42 L3 8 Q17 -2 31 8 Z" fill="var(--grid)" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>
+        </svg>
+        <svg class="wheel" viewBox="0 0 400 400" aria-hidden="true">
+          <g id="wheelG"></g>
+          <circle cx="200" cy="200" r="196" fill="none" stroke="#fff" stroke-width="7"/>
+          <circle cx="200" cy="200" r="196" fill="none" stroke="rgba(0,0,0,.15)" stroke-width="2"/>
+          <circle cx="200" cy="200" r="34" fill="#fff"/>
+          <circle cx="200" cy="200" r="26" fill="#5c5c5c"/>
+        </svg>
+      </div>
+      <button class="btn primary big" id="btnSpin">轉一下！</button>
+      <p class="hint" id="hint"></p>
+    </div>
+    <div id="qwrap"></div>
+  </section>
+
+  <!-- 家長設定 -->
+  <section id="scrAdmin" class="screen admin" hidden>
+    <div class="card stack">
+      <h2>課文</h2>
+      <div id="lessonNav" class="lesson-nav"></div>
+      <div class="row">
+        <input id="newLessonName" placeholder="新課名，例如：第七課 兩兄弟" style="flex:1;min-width:0">
+        <button class="btn small primary" id="btnAddLesson">新增</button>
+      </div>
+      <details id="sheetPanel">
+        <summary>連動 Google 試算表</summary>
+        <div class="stack">
+          <p class="muted">把試算表「發布到網路」（檔案 → 共用 → 發布到網路 → 選那個工作表、格式選 CSV），把產生的網址貼在這裡。之後每次打開這個網頁都會自動同步；試算表裡的課會標示為「試算表」，要修改請改試算表。</p>
+          <input id="sheetUrl" placeholder="貼上發布到網路的網址（或試算表的一般網址）">
+          <div class="row"><button class="btn small primary" id="btnSheetSave">儲存並同步</button><button class="btn small" id="btnSheetSync">立即同步</button><button class="btn small danger" id="btnSheetOff">取消連動</button></div>
+          <p class="sync-status" id="sheetStatus"></p>
+        </div>
+      </details>
+      <details>
+        <summary>備份與還原</summary>
+        <div class="stack">
+          <p class="muted">資料存在這台裝置的瀏覽器裡。要搬到另一台裝置，先在這裡下載備份檔，再到那台裝置用「從檔案還原」載入（會取代那台裝置上原有的資料）。</p>
+          <div class="row"><button class="btn small primary" id="btnDownload">下載備份檔</button><button class="btn small" id="btnUpload">從檔案還原</button><input type="file" id="fileIn" accept=".json,application/json" hidden></div>
+          <p class="muted">也可以用文字複製貼上：</p>
+          <div class="row"><button class="btn small" id="btnExport">產生備份文字</button><button class="btn small" id="btnImport">從下方文字還原</button></div>
+          <textarea id="backupBox" placeholder="備份文字會出現在這裡"></textarea>
+        </div>
+      </details>
+    </div>
+    <div class="card stack" id="lessonPane">
+      <p class="empty">左邊還沒有課文。先新增一課，再把生詞加進去。</p>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clone = o => JSON.parse(JSON.stringify(o));
+const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const LS = { get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v);}catch(e){ return d; } }, set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
+
+const COLORS = ['#E4572E','#F3A712','#3D5A80','#76B041','#17BEBB','#9B5DE5','#F15BB5','#2A9D8F','#E76F51','#5A67D8','#FF9F1C','#8AC926'];
+
+const S = {
+  lessons: new Map(), stats: new Map(),
+  local: true, loaded: false,
+  screen: 'pick', adminLesson: null,
+  session: { ok: 0, bad: 0 },
+  sound: LS.get('bb.sound', true),
+  play: { pool: [], weighted: true, recent: [], current: null, phase: 'idle', rot: 0, N: 12, lessonIds: [] },
+};
+
+/* ================= storage ================= */
+const Store = {
+  async init(){
+    S.local = true;
+    const data = LS.get('bb.data', { lessons: {}, stats: {} });
+    S.lessons = new Map(Object.entries(data.lessons || {}));
+    S.stats = new Map(Object.entries(data.stats || {}));
+    S.loaded = true;
+    onDataChanged();
+  },
+  persistLocal(){ try { localStorage.setItem('bb.data', JSON.stringify({ lessons: Object.fromEntries(S.lessons), stats: Object.fromEntries(S.stats) })); } catch (e) { banner('儲存失敗：瀏覽器不允許儲存資料（可能是無痕模式）。'); } },
+  async saveLesson(l){
+    S.lessons.set(l.id, clone(l));
+    this.persistLocal();
+    onDataChanged();
+  },
+  async deleteLesson(id){
+    S.lessons.delete(id); if (!isSheet(id)) S.stats.delete(id);
+    this.persistLocal();
+    onDataChanged();
+  },
+  async saveStats(lessonId, doc){
+    S.stats.set(lessonId, clone(doc));
+    this.persistLocal();
+  },
+};
+function banner(msg){ const b = $('#banner'); b.textContent = msg; b.hidden = !msg; }
+
+/* ================= helpers ================= */
+const lessonsSorted = () => [...S.lessons.values()].sort((a, b) => (a.order || 0) - (b.order || 0));
+const isSheet = lid => String(lid).startsWith('sheet-');
+const statsKey = lid => isSheet(lid) ? 'sheet' : lid;
+const statOf = (lid, wid) => (S.stats.get(statsKey(lid))?.counts?.[wid]) || { c: 0, w: 0 };
+function weightOf(lid, wid){
+  const s = statOf(lid, wid);
+  if (s.c + s.w === 0) return 1.3;
+  return Math.min(6, Math.max(0.1, Math.pow(0.7, s.c - s.w)));
+}
+function renderBlank(sentence, word, zhuyin){
+  // returns {q: html with zhuyin in the blank, a: html with the word filled in, inline: bool}
+  const s = sentence || '';
+  let i = word ? s.indexOf(word) : -1, len = word.length;
+  if (i < 0) { const m = s.match(/[OＯ○〇]+/); if (m) { i = m.index; len = m[0].length; } }
+  if (i < 0) return { inline: false, q: esc(s), a: esc(s) };
+  const pre = esc(s.slice(0, i)), post = esc(s.slice(i + len));
+  return { inline: true, q: pre + '<span class="zy">' + esc(zhuyin) + '</span>' + post, a: pre + '<span class="filled">' + esc(word) + '</span>' + post };
+}
+
+/* ================= navigation ================= */
+function show(screen){
+  S.screen = screen;
+  $('#scrPick').hidden = screen !== 'pick';
+  $('#scrPlay').hidden = screen !== 'play';
+  $('#scrAdmin').hidden = screen !== 'admin';
+  $('#btnBack').hidden = screen === 'pick';
+  $('#btnAdmin').hidden = screen !== 'pick';
+  $('#tally').hidden = screen !== 'play';
+  $('#subtitle').textContent = screen === 'admin' ? '家長設定' : '';
+  if (screen === 'pick') renderPick();
+  if (screen === 'admin') renderAdmin();
+  Sheet.setStatus();
+  window.scrollTo(0, 0);
+}
+function onDataChanged(){
+  if (S.screen === 'pick') renderPick();
+  if (S.screen === 'admin') renderAdmin();
+  if (S.screen === 'play') buildPool();
+}
+$('#btnBack').onclick = () => show('pick');
+$('#btnAdmin').onclick = () => show('admin');
+$('#btnSound').onclick = () => { S.sound = !S.sound; LS.set('bb.sound', S.sound); renderSound(); };
+function renderSound(){ $('#btnSound').textContent = S.sound ? '🔊' : '🔇'; }
+renderSound();
+
+/* ================= pick screen ================= */
+let selected = new Set(LS.get('bb.sel', []));
+function renderPick(){
+  const list = $('#lessonList');
+  const ls = lessonsSorted();
+  if (!S.loaded) { list.innerHTML = '<p class="muted">載入中…</p>'; return; }
+  if (!ls.length) { list.innerHTML = '<p class="empty">還沒有課文。點右上角「家長設定」，先把第一課的生詞加進來。</p>'; $('#btnStart').disabled = true; $('#pickSummary').textContent = ''; return; }
+  for (const id of [...selected]) if (!S.lessons.has(id)) selected.delete(id);
+  list.innerHTML = ls.map(l => {
+    const n = (l.words || []).length;
+    const on = selected.has(l.id);
+    return `<div class="lesson-item ${on ? 'on' : ''}" data-id="${l.id}" role="checkbox" aria-checked="${on}" tabindex="0">
+      <span class="box">${on ? '✓' : ''}</span><span class="name">${esc(l.name)}</span><span class="count">${n} 個詞</span></div>`;
+  }).join('');
+  list.querySelectorAll('.lesson-item').forEach(el => {
+    const toggle = () => { const id = el.dataset.id; selected.has(id) ? selected.delete(id) : selected.add(id); LS.set('bb.sel', [...selected]); renderPick(); };
+    el.onclick = toggle; el.onkeydown = e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); } };
+  });
+  const total = ls.filter(l => selected.has(l.id)).reduce((a, l) => a + (l.words || []).length, 0);
+  $('#btnStart').disabled = total === 0;
+  $('#pickSummary').textContent = total ? `已選 ${selected.size} 課，共 ${total} 個詞。` : '先勾選至少一課。';
+}
+$('#pickAll').onclick = () => { selected = new Set(lessonsSorted().map(l => l.id)); LS.set('bb.sel', [...selected]); renderPick(); };
+$('#pickNone').onclick = () => { selected.clear(); LS.set('bb.sel', []); renderPick(); };
+$('#modeBox').addEventListener('change', () => { $('#modeBox').querySelectorAll('label').forEach(l => l.classList.toggle('on', l.querySelector('input').checked)); LS.set('bb.mode', $('input[name=mode]:checked').value); });
+(() => { const m = LS.get('bb.mode', 'weighted'); const r = $(`input[name=mode][value=${m}]`); if (r) { r.checked = true; $('#modeBox').dispatchEvent(new Event('change')); } })();
+$('#btnStart').onclick = () => {
+  S.play.lessonIds = [...selected];
+  S.play.weighted = $('input[name=mode]:checked').value === 'weighted';
+  S.play.recent = []; S.play.current = null; S.play.phase = 'idle';
+  S.session = { ok: 0, bad: 0 }; renderTally();
+  buildPool();
+  S.play.N = Math.max(4, Math.min(12, S.play.pool.length));
+  buildWheel(S.play.N);
+  renderIdleCard();
+  $('#hint').textContent = '按「轉一下」抽一個詞';
+  $('#btnSpin').disabled = false;
+  show('play');
+  $('#subtitle').textContent = lessonsSorted().filter(l => selected.has(l.id)).map(l => l.name.split(/\s+/)[0]).join('、');
+};
+
+/* ================= play ================= */
+function buildPool(){
+  const pool = [];
+  for (const lid of S.play.lessonIds) {
+    const l = S.lessons.get(lid); if (!l) continue;
+    for (const w of (l.words || [])) pool.push({ key: lid + '/' + w.id, lid, wid: w.id, word: w.word, zhuyin: w.zhuyin || '', sentence: w.sentence || '', lessonName: l.name, fromSheet: isSheet(lid) });
+  }
+  S.play.pool = pool;
+  if (S.play.current) { const fresh = pool.find(p => p.key === S.play.current.key); if (fresh) Object.assign(S.play.current, fresh); }
+}
+function pickWord(){
+  const all = S.play.pool; if (!all.length) return null;
+  let cand = all.filter(p => !S.play.recent.includes(p.key));
+  if (!cand.length) cand = all;
+  const ws = cand.map(p => S.play.weighted ? weightOf(p.lid, p.wid) : 1);
+  let r = Math.random() * ws.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < cand.length; i++) { r -= ws[i]; if (r <= 0) return cand[i]; }
+  return cand[cand.length - 1];
+}
+function renderIdleCard(){ $('#qwrap').innerHTML = '<div class="empty idle-card">轉一下轉盤，題目會出現在這裡。</div>'; $('#scrPlay').classList.remove('has-q'); }
+function renderTally(){ $('#tOk').textContent = S.session.ok; $('#tBad').textContent = S.session.bad; }
+
+function buildWheel(N){
+  const g = $('#wheelG'); const cx = 200, cy = 200, r = 192, slice = 360 / N;
+  const pt = (a, rr) => [cx + rr * Math.cos(a * Math.PI / 180), cy + rr * Math.sin(a * Math.PI / 180)];
+  let out = '';
+  for (let i = 0; i < N; i++) {
+    const a0 = -90 + i * slice, a1 = a0 + slice, [x0, y0] = pt(a0, r), [x1, y1] = pt(a1, r);
+    out += `<path d="M${cx} ${cy} L${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${slice > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z" fill="${COLORS[i % COLORS.length]}" stroke="#fff" stroke-width="2"/>`;
+  }
+  for (let i = 0; i < N; i++) {
+    const mid = -90 + (i + 0.5) * slice, [tx, ty] = pt(mid, 140);
+    const m = ((mid % 360) + 360) % 360, rot = (m > 90 && m < 270) ? mid + 180 : mid;
+    out += `<text class="wheel-num" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle" dominant-baseline="central" transform="rotate(${rot.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)})">${i + 1}</text>`;
+  }
+  for (let i = 0; i < N; i++) { const [px, py] = pt(-90 + i * slice, 186); out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4" fill="#fff" opacity=".9"/>`; }
+  g.innerHTML = out;
+  g.style.transform = `rotate(${S.play.rot}deg)`;
+}
+
+/* sound */
+let actx = null;
+function tick(){
+  if (!S.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), gn = actx.createGain();
+    o.type = 'square'; o.frequency.value = 900;
+    gn.gain.setValueAtTime(0.06, actx.currentTime); gn.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + 0.05);
+    o.connect(gn).connect(actx.destination); o.start(); o.stop(actx.currentTime + 0.05);
+  } catch (e) {}
+}
+function chime(good){
+  if (!S.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const notes = good ? [523, 659, 784] : [330, 262];
+    notes.forEach((f, i) => { const o = actx.createOscillator(), gn = actx.createGain(); o.type = 'sine'; o.frequency.value = f;
+      const t = actx.currentTime + i * 0.12; gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.12, t + 0.02); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+      o.connect(gn).connect(actx.destination); o.start(t); o.stop(t + 0.26); });
+  } catch (e) {}
+}
+
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+$('#btnSpin').onclick = () => {
+  if (S.play.phase === 'spinning') return;
+  buildPool();
+  const target = pickWord();
+  if (!target) { $('#hint').textContent = '這幾課還沒有生詞。'; return; }
+  const N = S.play.N, slice = 360 / N, k = Math.floor(Math.random() * N);
+  const jitter = (Math.random() - 0.5) * 0.7 * slice;
+  const desired = ((-((k + 0.5) * slice + jitter)) % 360 + 360) % 360;
+  const cur = ((S.play.rot % 360) + 360) % 360;
+  const forward = (desired - cur + 360) % 360;
+  const from = S.play.rot, total = from + 360 * (4 + Math.floor(Math.random() * 2)) + forward;
+  const D = reduced ? 900 : 4200 + Math.random() * 600;
+  S.play.phase = 'spinning'; S.play.current = target;
+  $('#btnSpin').disabled = true; $('#hint').textContent = '';
+  $('#qwrap').innerHTML = ''; $('#scrPlay').classList.remove('has-q');
+  const g = $('#wheelG'), pointer = $('#pointer');
+  let lastIdx = -1; const t0 = performance.now();
+  const ease = t => 1 - Math.pow(1 - t, 4);
+  function frame(now){
+    const t = Math.min(1, (now - t0) / D), rot = from + (total - from) * ease(t);
+    g.style.transform = `rotate(${rot}deg)`;
+    const idx = Math.floor((((-rot) % 360) + 360) % 360 / slice);
+    if (idx !== lastIdx) { lastIdx = idx; tick(); pointer.classList.remove('tick'); void pointer.offsetWidth; pointer.classList.add('tick'); }
+    if (t < 1) requestAnimationFrame(frame);
+    else { S.play.rot = total; S.play.phase = 'question'; showQuestion(); }
+  }
+  requestAnimationFrame(frame);
+};
+
+function showQuestion(){
+  const q = S.play.current; if (!q) return;
+  const b = renderBlank(q.sentence, q.word, q.zhuyin);
+  $('#scrPlay').classList.add('has-q');
+  $('#qwrap').innerHTML = `<div class="card qcard">
+    <div class="lesson-tag">${esc(q.lessonName)}</div>
+    ${b.inline ? `<div class="sentence">${b.q}</div>` : `${q.sentence ? `<div class="sentence">${b.q}</div>` : ''}<div class="zy-line">${esc(q.zhuyin) || '（沒有注音）'}</div>`}
+    <div class="row" style="justify-content:center;margin-top:22px"><button class="btn primary big" id="btnReveal">看答案</button></div>
+  </div>`;
+  $('#btnReveal').onclick = showAnswer;
+  $('#hint').textContent = '';
+  $('#qwrap').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'nearest' });
+}
+function showAnswer(){
+  const q = S.play.current; if (!q) return;
+  S.play.phase = 'answer';
+  const b = renderBlank(q.sentence, q.word, q.zhuyin);
+  const st = statOf(q.lid, q.wid);
+  $('#qwrap').innerHTML = `<div class="card qcard">
+    ${q.fromSheet ? '' : '<button class="icon edit-btn" id="btnEdit" title="修改造句">✎</button>'}
+    <div class="lesson-tag">${esc(q.lessonName)}</div>
+    ${q.sentence ? `<div class="sentence">${b.a}</div>` : ''}
+    <div class="answer${[...q.word].length >= 4 ? ' n4' : ''}">${[...q.word].map((ch, i) => `<div class="tian"><span style="animation-delay:${i * 90}ms">${esc(ch)}</span></div>`).join('')}</div>
+    <div class="zy-line" style="text-align:center">${esc(q.zhuyin)}</div>
+    <div class="judge"><button class="btn ok big" id="btnOk">答對了</button><button class="btn bad big" id="btnBad">答錯了</button></div>
+    <p class="stat-line muted">這個詞：答對 ${st.c} 次、答錯 ${st.w} 次</p>
+    <div id="editBox" hidden></div>
+  </div>`;
+  $('#btnOk').onclick = () => judge(true);
+  $('#btnBad').onclick = () => judge(false);
+  if ($('#btnEdit')) $('#btnEdit').onclick = openEditor;
+  $('#qwrap').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'nearest' });
+}
+function openEditor(){
+  const q = S.play.current, box = $('#editBox'); if (!q) return;
+  box.hidden = false;
+  box.innerHTML = `<div class="editor"><label class="muted">修改造句（句子裡要包含「${esc(q.word)}」才會挖空）</label>
+    <input id="editSentence" value="${esc(q.sentence)}"><label class="muted">注音</label><input id="editZhuyin" value="${esc(q.zhuyin)}">
+    <div class="row"><button class="btn small primary" id="editSave">儲存</button><button class="btn small" id="editCancel">取消</button></div></div>`;
+  $('#editSentence').focus();
+  $('#editCancel').onclick = () => { box.hidden = true; box.innerHTML = ''; };
+  $('#editSave').onclick = async () => {
+    const l = clone(S.lessons.get(q.lid)); if (!l) return;
+    const w = (l.words || []).find(x => x.id === q.wid); if (!w) return;
+    w.sentence = $('#editSentence').value.trim(); w.zhuyin = $('#editZhuyin').value.trim();
+    await Store.saveLesson(l);
+    q.sentence = w.sentence; q.zhuyin = w.zhuyin;
+    showAnswer();
+  };
+}
+async function judge(good){
+  const q = S.play.current; if (!q || S.play.phase !== 'answer') return;
+  S.play.phase = 'idle';
+  const skey = statsKey(q.lid);
+  const doc = clone(S.stats.get(skey) || { counts: {} }); doc.counts = doc.counts || {};
+  const s = doc.counts[q.wid] || { c: 0, w: 0 };
+  if (good) s.c++; else s.w++; s.t = Date.now(); doc.counts[q.wid] = s;
+  if (good) S.session.ok++; else S.session.bad++; renderTally();
+  chime(good);
+  S.play.recent.push(q.key); const keep = Math.min(3, Math.max(0, S.play.pool.length - 1)); while (S.play.recent.length > keep) S.play.recent.shift();
+  $('#qwrap').innerHTML = `<div class="card flash">${good ? '答對了，再來一題！' : '沒關係，下次會記得。'}</div>`;
+  $('#btnSpin').disabled = false; $('#hint').textContent = '再轉一次';
+  await Store.saveStats(skey, doc);
+  setTimeout(() => { if (S.play.phase === 'idle') { renderIdleCard(); $('#btnSpin').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' }); } }, 1100);
+}
+
+/* ================= admin ================= */
+function renderAdmin(){
+  const nav = $('#lessonNav'); const ls = lessonsSorted();
+  if (!S.loaded) { nav.innerHTML = '<p class="muted">載入中…</p>'; return; }
+  if (!ls.length) { nav.innerHTML = '<p class="muted">還沒有課文。</p>'; S.adminLesson = null; }
+  else {
+    if (!S.adminLesson || !S.lessons.has(S.adminLesson)) S.adminLesson = ls[0].id;
+    nav.innerHTML = ls.map(l => `<button class="${l.id === S.adminLesson ? 'on' : ''}" data-id="${l.id}"><span>${esc(l.name)}${isSheet(l.id) ? ' <span class="src">試算表</span>' : ''}</span><small>${(l.words || []).length} 詞</small></button>`).join('');
+    nav.querySelectorAll('button').forEach(b => b.onclick = () => { S.adminLesson = b.dataset.id; renderAdmin(); });
+  }
+  renderLessonPane();
+}
+function renderLessonPane(){
+  const pane = $('#lessonPane'); const l = S.lessons.get(S.adminLesson);
+  if (!l) { pane.innerHTML = '<p class="empty">左邊還沒有課文。先新增一課，再把生詞加進去。</p>'; return; }
+  const rows = (l.words || []).map((w, i) => { const st = statOf(l.id, w.id); return `<tr data-wid="${w.id}">
+      <td class="n">${i + 1}</td><td class="w">${esc(w.word)}</td><td class="z">${esc(w.zhuyin)}</td><td class="s">${esc(w.sentence)}</td>
+      <td class="n"><span style="color:var(--ok)">${st.c}</span> / <span style="color:var(--bad)">${st.w}</span></td>
+      <td class="a"><button class="icon act-edit" title="修改">✎</button><button class="icon act-del" title="刪除">🗑</button></td></tr>`; }).join('');
+  const ro = isSheet(l.id);
+  const rows2 = ro ? rows.replace(/<td class="a">[\s\S]*?<\/td>/g, '<td class="a"></td>') : rows;
+  pane.innerHTML = `
+    <div class="row" style="justify-content:space-between">
+      ${ro ? `<h2 style="font-family:var(--content);font-weight:400">${esc(l.name)} <span class="tag cloud">來自試算表</span></h2>` : `<input id="lessonName" value="${esc(l.name)}" style="flex:1;min-width:0;font-family:var(--content);font-size:20px">
+      <button class="btn small" id="btnRename">改名</button>
+      <button class="btn small danger" id="btnDelLesson">刪除這課</button>`}
+    </div>
+    ${ro ? '<p class="muted">這課的生詞、注音、造句都跟著試算表走；要修改請改試算表，再按「立即同步」。</p>' : ''}
+    <div style="overflow-x:auto">
+    <table class="words"><thead><tr><th>#</th><th>生詞</th><th>注音</th><th>造句</th><th>對 / 錯</th><th></th></tr></thead>
+    <tbody>${rows2 || '<tr><td colspan="6" class="muted">還沒有生詞。</td></tr>'}</tbody></table></div>
+    ${ro ? '' : `<div class="form3">
+      <label>生詞<input id="fWord" placeholder="吃飯"></label>
+      <label>注音<input id="fZhuyin" placeholder="ㄔ ㄈㄢˋ"></label>
+      <label>造句（句子裡要包含這個詞）<input id="fSentence" placeholder="他在桌上吃飯"></label>
+      <label>&nbsp;<button class="btn small primary" id="btnAddWord">加入</button></label>
+    </div>
+    <details>
+      <summary>一次貼很多個（從試算表複製）</summary>
+      <div class="stack">
+        <p class="muted">一行一個詞，欄位用 Tab、逗號或「|」隔開：生詞、注音、造句。例如：<br><code>吃飯,ㄔ ㄈㄢˋ,他在桌上吃飯</code></p>
+        <textarea id="bulkBox" placeholder="吃飯	ㄔ ㄈㄢˋ	他在桌上吃飯&#10;睡覺	ㄕㄨㄟˋ ㄐㄧㄠˋ	弟弟在床上睡覺"></textarea>
+        <div class="row"><button class="btn small primary" id="btnBulk">全部加入</button><span class="muted" id="bulkMsg"></span></div>
+      </div>
+    </details>`}
+    <div class="row" style="justify-content:space-between">
+      <span class="tag">每答對一次，這個詞出現的機會約打七折；每答錯一次約變 1.4 倍。</span>
+      <button class="btn small" id="btnResetStats">清除這課的答題紀錄</button>
+    </div>`;
+  $('#btnResetStats').onclick = async () => {
+    if (!confirm('清除這課所有詞的答對／錯紀錄？')) return;
+    const skey = statsKey(l.id); const doc = clone(S.stats.get(skey) || { counts: {} }); doc.counts = doc.counts || {};
+    for (const w of (l.words || [])) delete doc.counts[w.id];
+    await Store.saveStats(skey, doc); renderLessonPane();
+  };
+  if (ro) return;
+  $('#btnRename').onclick = async () => { const name = $('#lessonName').value.trim(); if (!name) return; const c = clone(l); c.name = name; await Store.saveLesson(c); };
+  $('#btnDelLesson').onclick = async () => { if (confirm(`確定刪除「${l.name}」和裡面 ${(l.words || []).length} 個詞？`)) { await Store.deleteLesson(l.id); } };
+  $('#btnResetStats').onclick = async () => { if (confirm('清除這課所有詞的答對／答錯紀錄？')) { await Store.saveStats(l.id, { counts: {} }); renderLessonPane(); } };
+  const addWord = async (word, zhuyin, sentence) => { const c = clone(l); c.words = c.words || []; c.words.push({ id: uid('w'), word, zhuyin, sentence }); await Store.saveLesson(c); };
+  $('#btnAddWord').onclick = async () => {
+    const word = $('#fWord').value.trim(); if (!word) { $('#fWord').focus(); return; }
+    await addWord(word, $('#fZhuyin').value.trim(), $('#fSentence').value.trim());
+  };
+  $('#fSentence').onkeydown = e => { if (e.key === 'Enter') $('#btnAddWord').click(); };
+  $('#btnBulk').onclick = async () => {
+    const lines = $('#bulkBox').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const items = lines.map(line => { const p = line.split(/\t|,|，|\|/).map(s => s.trim()); return { word: p[0] || '', zhuyin: p[1] || '', sentence: p[2] || '' }; }).filter(x => x.word);
+    if (!items.length) { $('#bulkMsg').textContent = '沒有讀到內容。'; return; }
+    const c = clone(l); c.words = c.words || [];
+    for (const it of items) c.words.push({ id: uid('w'), ...it });
+    await Store.saveLesson(c);
+  };
+  pane.querySelectorAll('.act-del').forEach(b => b.onclick = async () => {
+    const wid = b.closest('tr').dataset.wid; const c = clone(l); const w = c.words.find(x => x.id === wid);
+    if (w && confirm(`刪除「${w.word}」？`)) { c.words = c.words.filter(x => x.id !== wid); await Store.saveLesson(c); }
+  });
+  pane.querySelectorAll('.act-edit').forEach(b => b.onclick = () => {
+    const tr = b.closest('tr'), wid = tr.dataset.wid, w = l.words.find(x => x.id === wid); if (!w) return;
+    tr.innerHTML = `<td class="n"></td><td><input value="${esc(w.word)}" class="e-word"></td><td><input value="${esc(w.zhuyin)}" class="e-zy"></td><td><input value="${esc(w.sentence)}" class="e-sen"></td><td></td>
+      <td class="a"><button class="btn small primary e-save">存</button> <button class="btn small e-cancel">取消</button></td>`;
+    tr.querySelector('.e-cancel').onclick = () => renderLessonPane();
+    tr.querySelector('.e-save').onclick = async () => {
+      const c = clone(l), t = c.words.find(x => x.id === wid);
+      t.word = tr.querySelector('.e-word').value.trim() || t.word; t.zhuyin = tr.querySelector('.e-zy').value.trim(); t.sentence = tr.querySelector('.e-sen').value.trim();
+      await Store.saveLesson(c);
+    };
+  });
+}
+$('#btnAddLesson').onclick = async () => {
+  const name = $('#newLessonName').value.trim(); if (!name) { $('#newLessonName').focus(); return; }
+  const l = { id: uid('l'), name, order: Date.now(), words: [] };
+  $('#newLessonName').value = '';
+  S.adminLesson = l.id;
+  await Store.saveLesson(l);
+};
+$('#newLessonName').onkeydown = e => { if (e.key === 'Enter') $('#btnAddLesson').click(); };
+const exportData = () => JSON.stringify({ v: 1, exportedAt: new Date().toISOString(), lessons: Object.fromEntries(S.lessons), stats: Object.fromEntries(S.stats), sheet: Sheet.cfg });
+async function restoreFrom(text){
+  let data; try { data = JSON.parse(text); } catch (e) { alert('這不是有效的備份檔。'); return; }
+  const ls = Object.values(data.lessons || {}).filter(l => l && l.id && l.name);
+  if (!ls.length) { alert('備份裡沒有課文。'); return; }
+  if (!confirm(`將用備份取代目前的資料：${ls.length} 課。繼續？`)) return;
+  S.lessons = new Map(ls.map(l => [l.id, clone(l)]));
+  S.stats = new Map(Object.entries(data.stats || {}).filter(([id]) => S.lessons.has(id)));
+  if (data.sheet && data.sheet.url) { Sheet.cfg = data.sheet; LS.set('bb.sheet', Sheet.cfg); }
+  Store.persistLocal(); S.adminLesson = null; onDataChanged();
+  banner('已還原 ' + ls.length + ' 課。'); setTimeout(() => banner(''), 3000);
+}
+$('#btnExport').onclick = () => { $('#backupBox').value = exportData(); $('#backupBox').select(); };
+$('#btnImport').onclick = () => restoreFrom($('#backupBox').value);
+$('#btnDownload').onclick = () => {
+  const blob = new Blob([exportData()], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = '班班背生字-備份-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('#btnUpload').onclick = () => $('#fileIn').click();
+$('#fileIn').onchange = async e => { const f = e.target.files[0]; if (!f) return; await restoreFrom(await f.text()); e.target.value = ''; };
+
+/* ================= Google Sheet sync ================= */
+function cn(n){ const d = '零一二三四五六七八九'; if (n < 10) return d[n]; if (n < 20) return '十' + (n % 10 ? d[n % 10] : ''); if (n < 100) return d[Math.floor(n / 10)] + '十' + (n % 10 ? d[n % 10] : ''); return String(n); }
+function parseCSV(text){
+  const rows = []; let row = [], cell = '', q = false;
+  text = text.replace(/^\uFEFF/, '');
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === ',') { row.push(cell); cell = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += ch;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ''));
+}
+function rowsToLessons(rows){
+  const isHead = r => r.filter(c => /課|^id$|編號|序號|圈詞|生詞|詞語|注音|整句|造句|例句/i.test(c.trim())).length >= 2;
+  let hi = rows.slice(0, 5).findIndex(isHead), col;
+  if (hi >= 0) {
+    const h = rows[hi].map(c => c.trim()), f = re => h.findIndex(c => re.test(c));
+    col = { lesson: f(/課|lesson/i), id: f(/^id$|編號|序號/i), word: f(/圈詞|生詞|詞語|語詞|單字|^詞$/), zhuyin: f(/注音/), sentence: f(/整句|造句|例句|句子/) };
+  } else { hi = -1; col = { lesson: 0, id: 1, word: 2, zhuyin: 3, sentence: 4 }; }
+  if (col.word < 0) throw new Error('找不到「圈詞」欄，請確認第一列是欄位名稱（課、ID、圈詞、注音、整句）。');
+  const lessons = new Map(); let count = 0;
+  for (const r of rows.slice(hi + 1)) {
+    const word = (r[col.word] || '').trim(); if (!word) continue;
+    const lv = col.lesson >= 0 ? (r[col.lesson] || '').trim() : '';
+    const num = /^\d+$/.test(lv) ? parseInt(lv, 10) : NaN;
+    const lid = 'sheet-' + (isNaN(num) ? (lv || 'all').replace(/[^\w\u4e00-\u9fff]/g, '') : num);
+    if (!lessons.has(lid)) lessons.set(lid, { id: lid, name: isNaN(num) ? (lv || '試算表詞彙') : '第' + cn(num) + '課', order: isNaN(num) ? 1000 + lessons.size : num, words: [] });
+    const rawId = col.id >= 0 ? (r[col.id] || '').trim() : '';
+    lessons.get(lid).words.push({ id: 's' + (rawId || word), word, zhuyin: (r[col.zhuyin] || '').trim(), sentence: (r[col.sentence] || '').trim() });
+    count++;
+  }
+  if (!count) throw new Error('試算表裡沒有讀到任何詞。');
+  return { lessons, count };
+}
+const Sheet = {
+  cfg: LS.get('bb.sheet', null),
+  toCsvUrl(u){
+    u = (u || '').trim(); if (!u) return null;
+    try {
+      if (/\/spreadsheets\/d\/e\//.test(u)) {
+        const url = new URL(u.replace('/pubhtml', '/pub'));
+        url.searchParams.set('output', 'csv'); if (!url.searchParams.get('single')) url.searchParams.set('single', 'true');
+        url.hash = ''; return url.toString();
+      }
+      const m = u.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/); if (!m) return null;
+      const gid = (u.match(/[#&?]gid=(\d+)/) || [])[1] || '0';
+      return `https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&headers=1&gid=${gid}`;
+    } catch (e) { return null; }
+  },
+  busy: false,
+  async sync(silent){
+    if (!this.cfg || !this.cfg.url || this.busy) return false;
+    this.busy = true; this.setStatus('同步中…');
+    try {
+      const res = await fetch(this.cfg.csvUrl, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      if (/^\s*</.test(text)) throw new Error('拿到的不是 CSV。請改用「發布到網路」產生的網址。');
+      const { lessons, count } = rowsToLessons(parseCSV(text));
+      for (const id of [...S.lessons.keys()]) if (isSheet(id)) S.lessons.delete(id);
+      for (const [id, l] of lessons) S.lessons.set(id, l);
+      this.cfg.lastSync = Date.now(); this.cfg.count = count; this.cfg.lessonCount = lessons.size; this.cfg.error = '';
+      LS.set('bb.sheet', this.cfg); Store.persistLocal(); onDataChanged(); this.setStatus();
+      return true;
+    } catch (e) {
+      const msg = (e && e.message) || String(e);
+      this.cfg.error = /Failed to fetch|NetworkError|Load failed/i.test(msg) ? '連不上試算表（可能沒有網路，或試算表還沒「發布到網路」）。' : msg;
+      LS.set('bb.sheet', this.cfg); this.setStatus();
+      if (!silent) alert('同步失敗：' + this.cfg.error);
+      return false;
+    } finally { this.busy = false; }
+  },
+  setStatus(text){
+    const c = this.cfg; let msg = text || '';
+    if (!msg && c && c.url) {
+      const when = c.lastSync ? new Date(c.lastSync).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '尚未';
+      msg = c.error ? `上次同步失敗：${c.error}` : `已連動試算表 · ${c.lessonCount || 0} 課 ${c.count || 0} 詞 · 上次同步 ${when}`;
+    }
+    for (const id of ['sheetStatus', 'pickSync']) { const el = $('#' + id); if (!el) continue; el.textContent = msg; el.hidden = !msg; el.classList.toggle('err', !!(c && c.error && !text)); }
+    if ($('#sheetUrl') && c && c.url && !$('#sheetUrl').value) $('#sheetUrl').value = c.url;
+    if ($('#sheetPanel') && c && c.url) $('#sheetPanel').open = true;
+  },
+};
+$('#btnSheetSave').onclick = async () => {
+  const url = $('#sheetUrl').value.trim(); const csvUrl = Sheet.toCsvUrl(url);
+  if (!csvUrl) { alert('看不懂這個網址。請貼 Google 試算表的網址，或「發布到網路」產生的網址。'); return; }
+  Sheet.cfg = { url, csvUrl, lastSync: 0, count: 0, lessonCount: 0, error: '' }; LS.set('bb.sheet', Sheet.cfg);
+  await Sheet.sync(false);
+};
+$('#btnSheetSync').onclick = () => { if (!Sheet.cfg || !Sheet.cfg.url) { alert('先貼上網址並儲存。'); return; } Sheet.sync(false); };
+$('#btnSheetOff').onclick = () => {
+  if (!Sheet.cfg || !Sheet.cfg.url) return;
+  if (!confirm('取消連動後，來自試算表的課會從這個網頁移除（答題紀錄會保留，重新連動時會接回去）。繼續？')) return;
+  for (const id of [...S.lessons.keys()]) if (isSheet(id)) S.lessons.delete(id);
+  Sheet.cfg = null; LS.set('bb.sheet', null); $('#sheetUrl').value = ''; Store.persistLocal(); onDataChanged(); Sheet.setStatus();
+};
+
+/* ================= boot ================= */
+renderPick();
+Store.init().then(() => { Sheet.setStatus(); if (Sheet.cfg && Sheet.cfg.url) Sheet.sync(true); });
+})();
+</script>
+</body>
+</html>
