@@ -165,6 +165,10 @@ details .stack{margin-top:12px}
 .tag{display:inline-block;padding:2px 8px;border-radius:8px;background:var(--chip);color:var(--ink-2);font-size:13px}
 .tag.cloud{color:var(--accent);font-weight:600}
 .sync-status{font-size:14px;color:var(--ink-2)}
+.auth{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--ink-2)}
+.auth .dot{width:9px;height:9px;border-radius:50%;background:var(--line);flex:none}
+.auth.on .dot{background:var(--ok)}
+.auth b{color:var(--ink)}
 .sync-status.err{color:var(--bad)}
 .lesson-nav button .src{font-family:var(--ui);font-size:12px;color:var(--accent)}
 @media (prefers-reduced-motion: reduce){
@@ -204,6 +208,7 @@ details .stack{margin-top:12px}
       <button class="btn primary big" id="btnStart">開始練習</button>
       <p class="muted" id="pickSummary"></p>
       <p class="sync-status" id="pickSync" hidden></p>
+      <div class="auth" id="pickAuth" hidden></div>
     </div>
   </section>
 
@@ -231,6 +236,7 @@ details .stack{margin-top:12px}
   <!-- 家長設定 -->
   <section id="scrAdmin" class="screen admin" hidden>
     <div class="card stack">
+      <div class="auth" id="adminAuth"></div>
       <h2>課文</h2>
       <div id="lessonNav" class="lesson-nav"></div>
       <div class="row">
@@ -263,8 +269,7 @@ details .stack{margin-top:12px}
   </section>
 </main>
 
-<script>
-(() => {
+<script type="module">
 'use strict';
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -298,15 +303,18 @@ const Store = {
     S.lessons.set(l.id, clone(l));
     this.persistLocal();
     onDataChanged();
+    if (Cloud.ready && !isSheet(l.id)) Cloud.saveLesson(clone(l));
   },
   async deleteLesson(id){
     S.lessons.delete(id); if (!isSheet(id)) S.stats.delete(id);
     this.persistLocal();
     onDataChanged();
+    if (Cloud.ready && !isSheet(id)) Cloud.deleteLesson(id);
   },
   async saveStats(lessonId, doc){
     S.stats.set(lessonId, clone(doc));
     this.persistLocal();
+    if (Cloud.ready) Cloud.saveStats(lessonId, clone(doc));
   },
 };
 function banner(msg){ const b = $('#banner'); b.textContent = msg; b.hidden = !msg; }
@@ -343,7 +351,7 @@ function show(screen){
   $('#subtitle').textContent = screen === 'admin' ? '家長設定' : '';
   if (screen === 'pick') renderPick();
   if (screen === 'admin') renderAdmin();
-  Sheet.setStatus();
+  Sheet.setStatus(); renderAuth();
   window.scrollTo(0, 0);
 }
 function onDataChanged(){
@@ -664,6 +672,7 @@ async function restoreFrom(text){
   S.stats = new Map(Object.entries(data.stats || {}).filter(([id]) => S.lessons.has(id)));
   if (data.sheet && data.sheet.url) { Sheet.cfg = data.sheet; LS.set('bb.sheet', Sheet.cfg); }
   Store.persistLocal(); S.adminLesson = null; onDataChanged();
+  if (Cloud.ready) Cloud.pushAll();
   banner('已還原 ' + ls.length + ' 課。'); setTimeout(() => banner(''), 3000);
 }
 $('#btnExport').onclick = () => { $('#backupBox').value = exportData(); $('#backupBox').select(); };
@@ -768,6 +777,7 @@ $('#btnSheetSave').onclick = async () => {
   const url = $('#sheetUrl').value.trim(); const csvUrl = Sheet.toCsvUrl(url);
   if (!csvUrl) { alert('看不懂這個網址。請貼 Google 試算表的網址，或「發布到網路」產生的網址。'); return; }
   Sheet.cfg = { url, csvUrl, lastSync: 0, count: 0, lessonCount: 0, error: '' }; LS.set('bb.sheet', Sheet.cfg);
+  if (Cloud.ready) Cloud.saveSettings();
   await Sheet.sync(false);
 };
 $('#btnSheetSync').onclick = () => { if (!Sheet.cfg || !Sheet.cfg.url) { alert('先貼上網址並儲存。'); return; } Sheet.sync(false); };
@@ -776,12 +786,112 @@ $('#btnSheetOff').onclick = () => {
   if (!confirm('取消連動後，來自試算表的課會從這個網頁移除（答題紀錄會保留，重新連動時會接回去）。繼續？')) return;
   for (const id of [...S.lessons.keys()]) if (isSheet(id)) S.lessons.delete(id);
   Sheet.cfg = null; LS.set('bb.sheet', null); $('#sheetUrl').value = ''; Store.persistLocal(); onDataChanged(); Sheet.setStatus();
+  if (Cloud.ready) Cloud.saveSettings();
 };
+
+/* ================= Firebase (Google 登入 + Firestore 同步) ================= */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBpeWA0AFgUx0ZM_tdUL6uZfMzhBCTxEy8",
+  authDomain: "banban-4c620.firebaseapp.com",
+  projectId: "banban-4c620",
+  storageBucket: "banban-4c620.firebasestorage.app",
+  messagingSenderId: "780501803528",
+  appId: "1:780501803528:web:673730b0a3acdc2e58e7bd"
+};
+const FB_VER = '12.9.0';
+const Cloud = {
+  fb: null, auth: null, db: null, user: null, ready: false, unsubs: [], available: false, error: '',
+  async init(){
+    try {
+      const [app, auth, fs] = await Promise.all([
+        import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app.js`),
+        import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-auth.js`),
+        import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-firestore.js`),
+      ]);
+      this.fb = { ...auth, ...fs };
+      const a = app.initializeApp(FIREBASE_CONFIG);
+      this.auth = auth.getAuth(a);
+      try { this.db = fs.initializeFirestore(a, { localCache: fs.persistentLocalCache() }); }
+      catch (e) { this.db = fs.getFirestore(a); }
+      this.available = true;
+      auth.onAuthStateChanged(this.auth, u => this.onUser(u));
+    } catch (e) { console.warn('Firebase 載入失敗，改用本機模式', e); this.available = false; this.error = '目前離線，紀錄先存在這台裝置'; renderAuth(); }
+  },
+  ref(name){ return this.fb.doc(this.db, 'banban', name); },
+  onUser(u){
+    for (const f of this.unsubs) f(); this.unsubs = [];
+    this.user = u; this.ready = false; this.error = '';
+    if (u) this.subscribe();
+    renderAuth();
+  },
+  subscribe(){
+    const fb = this.fb, onErr = e => this.onError(e);
+    this.unsubs.push(fb.onSnapshot(this.ref('stats'), snap => {
+      if (snap.exists()) { S.stats = new Map(Object.entries((snap.data().stats) || {})); }
+      else if (!snap.metadata.fromCache && S.stats.size) { this.pushStats(); }
+      this.ready = true; Store.persistLocal(); onDataChanged(); renderAuth();
+    }, onErr));
+    this.unsubs.push(fb.onSnapshot(this.ref('lessons'), snap => {
+      if (snap.exists()) {
+        const cloud = (snap.data().lessons) || {};
+        for (const id of [...S.lessons.keys()]) if (!isSheet(id)) S.lessons.delete(id);
+        for (const [id, l] of Object.entries(cloud)) S.lessons.set(id, clone(l));
+      } else if (!snap.metadata.fromCache) { this.pushLessons(); }
+      this.ready = true; Store.persistLocal(); onDataChanged();
+    }, onErr));
+    this.unsubs.push(fb.onSnapshot(this.ref('settings'), snap => {
+      if (snap.exists()) {
+        const sheet = snap.data().sheet || null;
+        const cur = Sheet.cfg && Sheet.cfg.url;
+        if (sheet && sheet.url && sheet.url !== cur) { Sheet.cfg = { ...sheet, lastSync: 0, error: '' }; LS.set('bb.sheet', Sheet.cfg); Sheet.setStatus(); Sheet.sync(true); }
+        else if (!sheet && cur) { for (const id of [...S.lessons.keys()]) if (isSheet(id)) S.lessons.delete(id); Sheet.cfg = null; LS.set('bb.sheet', null); Store.persistLocal(); onDataChanged(); Sheet.setStatus(); }
+      } else if (!snap.metadata.fromCache && Sheet.cfg && Sheet.cfg.url) { this.saveSettings(); }
+    }, onErr));
+  },
+  onError(e){
+    console.error(e);
+    if (e && e.code === 'permission-denied') {
+      const email = (this.user && this.user.email) || '';
+      this.error = `${email} 沒有權限`;
+      alert(`這個 Google 帳號（${email}）沒有存取權限。\n請到 Firebase 的 Firestore 規則把這個信箱加進去，或改用有權限的帳號登入。`);
+      this.signOut();
+    } else { this.error = '雲端連線出錯：' + (e.code || e.message || e); renderAuth(); }
+  },
+  w(p){ p.catch(e => this.onError(e)); },
+  saveStats(skey, doc){ const fb = this.fb; this.w(fb.setDoc(this.ref('stats'), { stats: { [skey]: doc } }, { mergeFields: [new fb.FieldPath('stats', skey)] })); },
+  saveLesson(l){ const fb = this.fb; this.w(fb.setDoc(this.ref('lessons'), { lessons: { [l.id]: l } }, { mergeFields: [new fb.FieldPath('lessons', l.id)] })); },
+  deleteLesson(id){ const fb = this.fb;
+    this.w(fb.setDoc(this.ref('lessons'), { lessons: { [id]: fb.deleteField() } }, { merge: true }));
+    this.w(fb.setDoc(this.ref('stats'), { stats: { [id]: fb.deleteField() } }, { merge: true })); },
+  saveSettings(){ const fb = this.fb; const sheet = Sheet.cfg ? { url: Sheet.cfg.url, csvUrl: Sheet.cfg.csvUrl } : null; this.w(fb.setDoc(this.ref('settings'), { sheet }, { merge: true })); },
+  pushStats(){ const fb = this.fb; this.w(fb.setDoc(this.ref('stats'), { stats: Object.fromEntries(S.stats) }, { merge: true })); },
+  pushLessons(){ const fb = this.fb; const manual = Object.fromEntries([...S.lessons].filter(([id]) => !isSheet(id))); if (Object.keys(manual).length) this.w(fb.setDoc(this.ref('lessons'), { lessons: manual }, { merge: true })); },
+  pushAll(){ this.pushStats(); this.pushLessons(); this.saveSettings(); },
+  async signIn(){
+    if (!this.available) { alert('雲端元件還沒載入，請確認有網路後重新整理。'); return; }
+    try { const p = new this.fb.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' }); await this.fb.signInWithPopup(this.auth, p); }
+    catch (e) { if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') alert('登入失敗：' + (e.code || e.message)); }
+  },
+  async signOut(){ try { await this.fb.signOut(this.auth); } catch (e) {} },
+};
+function renderAuth(){
+  const u = Cloud.user;
+  const html = u
+    ? `<span class="dot"></span><span>已登入 <b>${esc(u.email || u.displayName || '')}</b>${Cloud.ready ? '，紀錄會在各裝置同步' : '，連線中…'}${Cloud.error ? ' · ' + esc(Cloud.error) : ''}</span><button class="btn small" id="btnSignOut">登出</button>`
+    : `<span class="dot"></span><span>${Cloud.available ? '尚未登入，紀錄只存在這台裝置' : (Cloud.error || '雲端連線中…')}</span>${Cloud.available ? '<button class="btn small primary" id="btnSignIn">用 Google 登入</button>' : ''}`;
+  for (const id of ['pickAuth', 'adminAuth']) {
+    const el = $('#' + id); if (!el) continue;
+    el.innerHTML = html; el.hidden = false; el.classList.toggle('on', !!(u && Cloud.ready));
+    const si = el.querySelector('#btnSignIn'), so = el.querySelector('#btnSignOut');
+    if (si) si.onclick = () => Cloud.signIn();
+    if (so) so.onclick = () => { if (confirm('登出後這台裝置會回到只存本機的模式。確定？')) Cloud.signOut(); };
+  }
+}
 
 /* ================= boot ================= */
 renderPick();
-Store.init().then(() => { Sheet.setStatus(); if (Sheet.cfg && Sheet.cfg.url) Sheet.sync(true); });
-})();
+Store.init().then(() => { Sheet.setStatus(); renderAuth(); if (Sheet.cfg && Sheet.cfg.url) Sheet.sync(true); });
+Cloud.init();
 </script>
 </body>
 </html>
