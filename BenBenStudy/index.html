@@ -174,6 +174,45 @@ details .stack{margin-top:12px}
 @media (prefers-reduced-motion: reduce){
   .wheel-stage,.btn,.tian span,.flash{transition:none;animation:none}
 }
+
+/* ---- goal drum picker ---- */
+.goal-row{display:grid;gap:8px}
+.goal-row h2{font-size:20px}
+.drum{position:relative;height:150px;border-radius:16px;background:var(--card);border:1.5px solid var(--line-2);perspective:700px;overflow:hidden;max-width:320px;margin:0 auto;width:100%}
+.drum::before,.drum::after{content:"";position:absolute;left:0;right:0;height:52px;z-index:2;pointer-events:none}
+.drum::before{top:0;background:linear-gradient(var(--card),transparent)}
+.drum::after{bottom:0;background:linear-gradient(transparent,var(--card))}
+.drum-band{position:absolute;left:10px;right:10px;top:53px;height:44px;border-radius:10px;background:var(--chip);z-index:0}
+.drum-scroll{position:relative;height:100%;overflow-y:auto;scroll-snap-type:y mandatory;padding:53px 0;scrollbar-width:none;z-index:1;-webkit-overflow-scrolling:touch}
+.drum-scroll::-webkit-scrollbar{display:none}
+.drum-item{height:44px;line-height:44px;text-align:center;scroll-snap-align:center;font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink);transform-origin:center;cursor:pointer;user-select:none;will-change:transform,opacity}
+.drum-item.on{color:var(--accent)}
+.drum-unit{position:absolute;right:calc(50% - 64px);top:53px;line-height:44px;font-size:16px;color:var(--ink-2);z-index:1;pointer-events:none}
+.goal-hint{text-align:center;color:var(--ink-2);font-size:14px}
+
+/* ---- scoreboard ---- */
+.score{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;margin-top:8px}
+.score .big{background:var(--card);border:1.5px solid var(--line-2);border-radius:18px;padding:14px 18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:4px}
+.score .big .lbl{font-size:15px;color:var(--ink-2)}
+.score .big .num{font-size:clamp(40px,7vw,64px);font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums;font-family:var(--ui)}
+.score .ok .num{color:var(--ok)} .score .bad .num{color:var(--bad)}
+.score .num small{font-size:.45em;font-weight:600;color:var(--ink-2)}
+.score .bar{grid-column:1/-1;height:12px;border-radius:99px;background:var(--line-2);overflow:hidden}
+.score .bar i{display:block;height:100%;width:0;background:var(--ok);border-radius:99px;transition:width .4s ease}
+.score .num.bump{animation:bump .4s cubic-bezier(.2,1.6,.4,1)}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
+
+/* ---- special slices / effects ---- */
+.wheel-sp{font-family:var(--content);font-weight:700;font-size:19px;paint-order:stroke;stroke:rgba(0,0,0,.2);stroke-width:1.2px}
+.flash.plus{background:linear-gradient(135deg,#FFF3C4,#FFE082);color:#5a4200;border-color:#F3C948;font-size:34px}
+.flash.minus{background:#3b3b3b;color:#fff;border-color:#222;font-size:32px;animation:shake .5s ease both}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-12px) rotate(-1.5deg)}40%{transform:translateX(12px) rotate(1.5deg)}60%{transform:translateX(-8px)}80%{transform:translateX(8px)}}
+.flash.done{font-size:36px;padding:36px 20px}
+.flash.done .sub{font-size:18px;color:var(--ink-2);font-family:var(--ui);margin-top:8px}
+.flash.done .row{justify-content:center;margin-top:20px}
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50}
+.pointer.land{animation:land .35s cubic-bezier(.2,1.6,.4,1)}
+@keyframes land{0%{transform:translateX(-50%) scale(1)}40%{transform:translateX(-50%) scale(1.35)}100%{transform:translateX(-50%) scale(1)}}
 </style>
 </head>
 <body>
@@ -185,6 +224,7 @@ details .stack{margin-top:12px}
   <button id="btnAdmin" class="ghost">家長設定</button>
 </header>
 <div id="banner" class="banner" hidden></div>
+<canvas id="fx"></canvas>
 
 <main>
   <!-- 選課 -->
@@ -204,6 +244,11 @@ details .stack{margin-top:12px}
       <div class="mode" id="modeBox">
         <label class="on"><input type="radio" name="mode" value="weighted" checked><span><b>照紀錄調整</b><span class="muted">答錯多的詞會常出現，答對多的就少出現。</span></span></label>
         <label><input type="radio" name="mode" value="uniform"><span><b>完全隨機</b><span class="muted">每個詞機會一樣；答對答錯一樣會記下來。</span></span></label>
+      </div>
+      <div class="goal-row">
+        <h2>這次要答對幾題？</h2>
+        <div class="drum" id="goalDrum"><div class="drum-band"></div><div class="drum-scroll" id="goalScroll"></div><span class="drum-unit">題</span></div>
+        <p class="goal-hint" id="goalHint"></p>
       </div>
       <button class="btn primary big" id="btnStart">開始練習</button>
       <p class="muted" id="pickSummary"></p>
@@ -230,7 +275,14 @@ details .stack{margin-top:12px}
       <button class="btn primary big" id="btnSpin">轉一下！</button>
       <p class="hint" id="hint"></p>
     </div>
-    <div id="qwrap"></div>
+    <div>
+      <div id="qwrap"></div>
+      <div class="score" id="score">
+        <div class="big ok"><span class="lbl">答對</span><span class="num" id="sOk">0<small> / 10</small></span></div>
+        <div class="big bad"><span class="lbl">答錯</span><span class="num" id="sBad">0</span></div>
+        <div class="bar"><i id="sBar"></i></div>
+      </div>
+    </div>
   </section>
 
   <!-- 家長設定 -->
@@ -347,9 +399,9 @@ function show(screen){
   $('#scrAdmin').hidden = screen !== 'admin';
   $('#btnBack').hidden = screen === 'pick';
   $('#btnAdmin').hidden = screen !== 'pick';
-  $('#tally').hidden = screen !== 'play';
+  $('#tally').hidden = true;
   $('#subtitle').textContent = screen === 'admin' ? '家長設定' : '';
-  if (screen === 'pick') renderPick();
+  if (screen === 'pick') { renderPick(); Goal.set(Goal.value, false, false); }
   if (screen === 'admin') renderAdmin();
   Sheet.setStatus(); renderAuth();
   window.scrollTo(0, 0);
@@ -386,7 +438,40 @@ function renderPick(){
   const total = ls.filter(l => selected.has(l.id)).reduce((a, l) => a + (l.words || []).length, 0);
   $('#btnStart').disabled = total === 0;
   $('#pickSummary').textContent = total ? `已選 ${selected.size} 課，共 ${total} 個詞。` : '先勾選至少一課。';
+  if (Goal.max !== Math.max(1, total) || !Goal.items.length) Goal.build(total);
 }
+/* goal drum picker */
+const Goal = {
+  max: 1, pref: LS.get('bb.goal', 10), value: LS.get('bb.goal', 10), items: [],
+  build(max){
+    max = Math.max(1, max); this.max = max;
+    const sc = $('#goalScroll');
+    sc.innerHTML = Array.from({ length: max }, (_, i) => `<div class="drum-item" data-v="${i + 1}">${i + 1}</div>`).join('');
+    this.items = [...sc.children];
+    this.items.forEach(el => el.onclick = () => this.set(+el.dataset.v, true));
+    this.set(Math.min(this.pref, max), false, false);
+    this.paint();
+  },
+  set(v, smooth, persist = true){
+    v = Math.max(1, Math.min(this.max, v)); this.value = v; if (persist) { this.pref = v; LS.set('bb.goal', v); }
+    const sc = $('#goalScroll'); sc.scrollTo({ top: (v - 1) * 44, behavior: smooth ? 'smooth' : 'auto' });
+    this.paint(); $('#goalHint').textContent = `答對 ${v} 題就完成任務`;
+  },
+  paint(){
+    const sc = $('#goalScroll'); const centre = sc.scrollTop + 75;
+    for (const el of this.items) {
+      const d = (el.offsetTop + 22 - centre) / 44;
+      const a = Math.max(-75, Math.min(75, d * 24));
+      el.style.transform = `rotateX(${-a}deg) translateZ(${Math.max(0, 40 - Math.abs(d) * 14)}px) scale(${Math.max(.7, 1 - Math.abs(d) * .1)})`;
+      el.style.opacity = Math.max(.15, 1 - Math.abs(d) * .3);
+      el.classList.toggle('on', Math.abs(d) < .5);
+    }
+  },
+};
+(() => {
+  const sc = $('#goalScroll'); let t = null;
+  sc.addEventListener('scroll', () => { Goal.paint(); clearTimeout(t); t = setTimeout(() => { const v = Math.round(sc.scrollTop / 44) + 1; if (v !== Goal.value) { Goal.value = Math.max(1, Math.min(Goal.max, v)); Goal.pref = Goal.value; LS.set('bb.goal', Goal.value); $('#goalHint').textContent = `答對 ${Goal.value} 題就完成任務`; Goal.paint(); } }, 120); }, { passive: true });
+})();
 $('#pickAll').onclick = () => { selected = new Set(lessonsSorted().map(l => l.id)); LS.set('bb.sel', [...selected]); renderPick(); };
 $('#pickNone').onclick = () => { selected.clear(); LS.set('bb.sel', []); renderPick(); };
 $('#modeBox').addEventListener('change', () => { $('#modeBox').querySelectorAll('label').forEach(l => l.classList.toggle('on', l.querySelector('input').checked)); LS.set('bb.mode', $('input[name=mode]:checked').value); });
@@ -395,13 +480,13 @@ $('#btnStart').onclick = () => {
   S.play.lessonIds = [...selected];
   S.play.weighted = $('input[name=mode]:checked').value === 'weighted';
   S.play.recent = []; S.play.current = null; S.play.phase = 'idle';
-  S.session = { ok: 0, bad: 0 }; renderTally();
+  S.session = { ok: 0, bad: 0, goal: Goal.value }; S.play.done = false; renderTally();
   buildPool();
   S.play.N = Math.max(4, Math.min(12, S.play.pool.length));
   buildWheel(S.play.N);
   renderIdleCard();
   $('#hint').textContent = '按「轉一下」抽一個詞';
-  $('#btnSpin').disabled = false;
+  $('#btnSpin').disabled = false; $('#btnSpin').textContent = '轉一下！';
   show('play');
   $('#subtitle').textContent = lessonsSorted().filter(l => selected.has(l.id)).map(l => l.name.split(/\s+/)[0]).join('、');
 };
@@ -426,22 +511,40 @@ function pickWord(){
   return cand[cand.length - 1];
 }
 function renderIdleCard(){ $('#qwrap').innerHTML = '<div class="empty idle-card">轉一下轉盤，題目會出現在這裡。</div>'; $('#scrPlay').classList.remove('has-q'); }
-function renderTally(){ $('#tOk').textContent = S.session.ok; $('#tBad').textContent = S.session.bad; }
+function renderTally(bumpOk, bumpBad){
+  const g = S.session.goal || 1;
+  $('#tOk').textContent = S.session.ok; $('#tBad').textContent = S.session.bad;
+  $('#sOk').innerHTML = `${S.session.ok}<small> / ${g}</small>`; $('#sBad').textContent = S.session.bad;
+  $('#sBar').style.width = Math.min(100, S.session.ok / g * 100) + '%';
+  const b = (el) => { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); };
+  if (bumpOk) b($('#sOk')); if (bumpBad) b($('#sBad'));
+}
 
-function buildWheel(N){
-  const g = $('#wheelG'); const cx = 200, cy = 200, r = 192, slice = 360 / N;
+function buildWheel(nWords){
+  const total = nWords + 2, slices = [];
+  const iPlus = Math.floor(total / 4), iMinus = Math.floor(total * 3 / 4);
+  let n = 0;
+  for (let i = 0; i < total; i++) slices.push(i === iPlus ? { type: 'plus' } : i === iMinus ? { type: 'minus' } : { type: 'word', n: ++n });
+  S.play.slices = slices; S.play.total = total;
+  const g = $('#wheelG'); const cx = 200, cy = 200, r = 192, slice = 360 / total;
   const pt = (a, rr) => [cx + rr * Math.cos(a * Math.PI / 180), cy + rr * Math.sin(a * Math.PI / 180)];
-  let out = '';
-  for (let i = 0; i < N; i++) {
+  let out = '', ci = 0;
+  for (let i = 0; i < total; i++) {
     const a0 = -90 + i * slice, a1 = a0 + slice, [x0, y0] = pt(a0, r), [x1, y1] = pt(a1, r);
-    out += `<path d="M${cx} ${cy} L${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${slice > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z" fill="${COLORS[i % COLORS.length]}" stroke="#fff" stroke-width="2"/>`;
+    const sp = slices[i].type;
+    const fill = sp === 'plus' ? '#FFD166' : sp === 'minus' ? '#3F3F3F' : COLORS[(ci++) % COLORS.length];
+    out += `<path d="M${cx} ${cy} L${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${slice > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z" fill="${fill}" stroke="#fff" stroke-width="2"/>`;
   }
-  for (let i = 0; i < N; i++) {
-    const mid = -90 + (i + 0.5) * slice, [tx, ty] = pt(mid, 140);
+  for (let i = 0; i < total; i++) {
+    const mid = -90 + (i + 0.5) * slice, [tx, ty] = pt(mid, 135);
     const m = ((mid % 360) + 360) % 360, rot = (m > 90 && m < 270) ? mid + 180 : mid;
-    out += `<text class="wheel-num" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle" dominant-baseline="central" transform="rotate(${rot.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)})">${i + 1}</text>`;
+    const sp = slices[i].type;
+    const label = sp === 'plus' ? '免費+1' : sp === 'minus' ? '自動−1' : String(slices[i].n);
+    const cls = sp === 'word' ? 'wheel-num' : 'wheel-sp';
+    const color = sp === 'plus' ? '#5a4200' : '#fff';
+    out += `<text class="${cls}" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${color}" text-anchor="middle" dominant-baseline="central" transform="rotate(${rot.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)})">${label}</text>`;
   }
-  for (let i = 0; i < N; i++) { const [px, py] = pt(-90 + i * slice, 186); out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4" fill="#fff" opacity=".9"/>`; }
+  for (let i = 0; i < total; i++) { const [px, py] = pt(-90 + i * slice, 186); out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4" fill="#fff" opacity=".9"/>`; }
   g.innerHTML = out;
   g.style.transform = `rotate(${S.play.rot}deg)`;
 }
@@ -469,36 +572,111 @@ function chime(good){
   } catch (e) {}
 }
 
+function tone(f, t0, dur, type, vol){
+  const o = actx.createOscillator(), gn = actx.createGain(); o.type = type || 'sine'; o.frequency.value = f;
+  gn.gain.setValueAtTime(0.0001, t0); gn.gain.exponentialRampToValueAtTime(vol || 0.12, t0 + 0.02); gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(gn).connect(actx.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+const sfx = {
+  ctx(){ if (!S.sound) return null; try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); return actx; } catch (e) { return null; } },
+  land(){ const c = this.ctx(); if (!c) return; const t = c.currentTime; tone(1320, t, 0.35, 'sine', 0.14); tone(660, t, 0.25, 'triangle', 0.08); },
+  plus(){ const c = this.ctx(); if (!c) return; const t = c.currentTime; [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, t + i * 0.09, 0.3, 'sine', 0.12)); },
+  minus(){ const c = this.ctx(); if (!c) return; const t = c.currentTime; [440, 370, 311, 220].forEach((f, i) => tone(f, t + i * 0.14, 0.25, 'sawtooth', 0.05)); },
+  fanfare(){ const c = this.ctx(); if (!c) return; const t = c.currentTime;
+    [[523,0],[523,.15],[523,.3],[659,.45],[784,.75],[659,1.05],[784,1.2],[1047,1.5]].forEach(([f, d]) => { tone(f, t + d, 0.35, 'square', 0.05); tone(f / 2, t + d, 0.35, 'sine', 0.08); });
+    for (let i = 0; i < 6; i++) tone(1568 + Math.random() * 400, t + 1.6 + i * 0.12, 0.3, 'sine', 0.06); },
+};
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-$('#btnSpin').onclick = () => {
-  if (S.play.phase === 'spinning') return;
+
+/* ---- particle effects ---- */
+const FX = {
+  ps: [], raf: null, cv: null, cx: null,
+  init(){ this.cv = $('#fx'); this.cx = this.cv.getContext('2d'); const rs = () => { this.cv.width = innerWidth * devicePixelRatio; this.cv.height = innerHeight * devicePixelRatio; this.cx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); }; rs(); addEventListener('resize', rs); },
+  burst(x, y, n, colors, speed){
+    for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = (speed || 6) * (0.4 + Math.random()); this.ps.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, g: 0.18, life: 1, decay: 0.012 + Math.random() * 0.012, c: colors[i % colors.length], s: 4 + Math.random() * 5, shape: Math.random() < .5 ? 'r' : 'c', rot: Math.random() * 6, vr: (Math.random() - .5) * .3 }); }
+    this.run();
+  },
+  fireworks(dur){
+    if (reduced) { this.burst(innerWidth / 2, innerHeight / 2, 120, ['#FFD166','#EF476F','#06D6A0','#118AB2','#FFF'], 7); return; }
+    const t0 = performance.now(); const tick = () => { if (performance.now() - t0 > dur) return;
+      this.burst(innerWidth * (0.15 + Math.random() * 0.7), innerHeight * (0.15 + Math.random() * 0.45), 90, ['#FFD166','#EF476F','#06D6A0','#118AB2','#FF9F1C','#FFFFFF'], 7);
+      setTimeout(tick, 350 + Math.random() * 400); }; tick();
+  },
+  run(){ if (this.raf) return; const step = () => { const c = this.cx; c.clearRect(0, 0, innerWidth, innerHeight);
+      this.ps = this.ps.filter(p => p.life > 0);
+      for (const p of this.ps) { p.vy += p.g; p.x += p.vx; p.y += p.vy; p.vx *= .985; p.life -= p.decay; p.rot += p.vr;
+        c.globalAlpha = Math.max(0, p.life); c.fillStyle = p.c; c.save(); c.translate(p.x, p.y); c.rotate(p.rot);
+        if (p.shape === 'r') c.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); else { c.beginPath(); c.arc(0, 0, p.s / 2.4, 0, 7); c.fill(); } c.restore(); }
+      c.globalAlpha = 1;
+      if (this.ps.length) this.raf = requestAnimationFrame(step); else { this.raf = null; c.clearRect(0, 0, innerWidth, innerHeight); } };
+    this.raf = requestAnimationFrame(step); },
+  wheelCentre(){ const r = $('.wheel-stage').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; },
+};
+FX.init();
+function spin(){
+  if (S.play.phase === 'spinning' || S.play.done || S.screen !== 'play') return;
   buildPool();
-  const target = pickWord();
-  if (!target) { $('#hint').textContent = '這幾課還沒有生詞。'; return; }
-  const N = S.play.N, slice = 360 / N, k = Math.floor(Math.random() * N);
+  if (!S.play.pool.length) { $('#hint').textContent = '這幾課還沒有生詞。'; return; }
+  const total = S.play.total, slice = 360 / total, k = Math.floor(Math.random() * total);
+  const sp = S.play.slices[k];
+  let target = null;
+  if (sp.type === 'word') { target = pickWord(); if (!target) return; }
   const jitter = (Math.random() - 0.5) * 0.7 * slice;
   const desired = ((-((k + 0.5) * slice + jitter)) % 360 + 360) % 360;
   const cur = ((S.play.rot % 360) + 360) % 360;
   const forward = (desired - cur + 360) % 360;
-  const from = S.play.rot, total = from + 360 * (4 + Math.floor(Math.random() * 2)) + forward;
+  const from = S.play.rot, tot = from + 360 * (4 + Math.floor(Math.random() * 2)) + forward;
   const D = reduced ? 900 : 4200 + Math.random() * 600;
-  S.play.phase = 'spinning'; S.play.current = target;
-  $('#btnSpin').disabled = true; $('#hint').textContent = '';
+  S.play.phase = 'spinning'; S.play.current = target; S.play.landed = sp.type;
+  $('#btnSpin').disabled = true; $('#btnSpin').textContent = '轉動中…'; $('#hint').textContent = '';
   $('#qwrap').innerHTML = ''; $('#scrPlay').classList.remove('has-q');
   const g = $('#wheelG'), pointer = $('#pointer');
   let lastIdx = -1; const t0 = performance.now();
   const ease = t => 1 - Math.pow(1 - t, 4);
   function frame(now){
-    const t = Math.min(1, (now - t0) / D), rot = from + (total - from) * ease(t);
+    const t = Math.min(1, (now - t0) / D), rot = from + (tot - from) * ease(t);
     g.style.transform = `rotate(${rot}deg)`;
     const idx = Math.floor((((-rot) % 360) + 360) % 360 / slice);
     if (idx !== lastIdx) { lastIdx = idx; tick(); pointer.classList.remove('tick'); void pointer.offsetWidth; pointer.classList.add('tick'); }
     if (t < 1) requestAnimationFrame(frame);
-    else { S.play.rot = total; S.play.phase = 'question'; showQuestion(); }
+    else { S.play.rot = tot; sfx.land(); pointer.classList.remove('land'); void pointer.offsetWidth; pointer.classList.add('land');
+      if (sp.type === 'word') { S.play.phase = 'question'; showQuestion(); } else landSpecial(sp.type); }
   }
   requestAnimationFrame(frame);
-};
-
+}
+$('#btnSpin').onclick = spin;
+function nextRound(delay){
+  $('#btnSpin').textContent = '準備下一題…';
+  setTimeout(() => { if (S.play.phase === 'idle' && !S.play.done && S.screen === 'play') spin(); }, delay);
+}
+function landSpecial(type){
+  S.play.phase = 'idle';
+  const [x, y] = FX.wheelCentre();
+  if (type === 'plus') {
+    S.session.ok++; renderTally(true, false); sfx.plus();
+    FX.burst(x, y, 140, ['#FFD166', '#FF9F1C', '#EF476F', '#06D6A0', '#118AB2', '#FFFFFF'], 8);
+    $('#qwrap').innerHTML = '<div class="card flash plus">🎉 免費 +1！</div>';
+    if (checkDone()) return;
+  } else {
+    S.session.ok = Math.max(0, S.session.ok - 1); renderTally(false, false); sfx.minus();
+    $('#qwrap').innerHTML = '<div class="card flash minus">😵 自動 −1……</div>';
+  }
+  $('#hint').textContent = '';
+  nextRound(1800);
+}
+function checkDone(){
+  if (S.session.ok < (S.session.goal || 1)) return false;
+  S.play.done = true; S.play.phase = 'done';
+  $('#scrPlay').classList.remove('has-q');
+  $('#qwrap').innerHTML = `<div class="card flash done">🏆 任務完成！<div class="sub">答對 ${S.session.ok} 題、答錯 ${S.session.bad} 題</div>
+    <div class="row"><button class="btn primary big" id="btnAgain">再玩一輪</button><button class="btn big" id="btnHome">回選課</button></div></div>`;
+  $('#btnAgain').onclick = () => { S.session = { ok: 0, bad: 0, goal: S.session.goal }; S.play.done = false; S.play.phase = 'idle'; renderTally(); renderIdleCard(); $('#btnSpin').disabled = false; $('#btnSpin').textContent = '轉一下！'; $('#hint').textContent = '按「轉一下」開始'; };
+  $('#btnHome').onclick = () => show('pick');
+  $('#btnSpin').disabled = true; $('#btnSpin').textContent = '完成！'; $('#hint').textContent = '';
+  sfx.fanfare(); FX.fireworks(5000);
+  $('#qwrap').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'nearest' });
+  return true;
+}
 function showQuestion(){
   const q = S.play.current; if (!q) return;
   const b = renderBlank(q.sentence, q.word, q.zhuyin);
@@ -556,13 +734,16 @@ async function judge(good){
   const doc = clone(S.stats.get(skey) || { counts: {} }); doc.counts = doc.counts || {};
   const s = doc.counts[q.wid] || { c: 0, w: 0 };
   if (good) s.c++; else s.w++; s.t = Date.now(); doc.counts[q.wid] = s;
-  if (good) S.session.ok++; else S.session.bad++; renderTally();
+  if (good) S.session.ok++; else S.session.bad++; renderTally(good, !good);
   chime(good);
   S.play.recent.push(q.key); const keep = Math.min(3, Math.max(0, S.play.pool.length - 1)); while (S.play.recent.length > keep) S.play.recent.shift();
+  if (good) { const [x, y] = FX.wheelCentre(); FX.burst(x, y, 40, ['#06D6A0', '#FFD166', '#FFFFFF'], 5); }
   $('#qwrap').innerHTML = `<div class="card flash">${good ? '答對了，再來一題！' : '沒關係，下次會記得。'}</div>`;
-  $('#btnSpin').disabled = false; $('#hint').textContent = '再轉一次';
+  $('#scrPlay').classList.remove('has-q');
   await Store.saveStats(skey, doc);
-  setTimeout(() => { if (S.play.phase === 'idle') { renderIdleCard(); $('#btnSpin').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' }); } }, 1100);
+  if (checkDone()) return;
+  $('#hint').textContent = '自動轉下一題…';
+  nextRound(1100);
 }
 
 /* ================= admin ================= */
@@ -815,6 +996,7 @@ const Cloud = {
       catch (e) { this.db = fs.getFirestore(a); }
       this.available = true;
       auth.onAuthStateChanged(this.auth, u => this.onUser(u));
+      auth.getRedirectResult(this.auth).catch(e => { this.error = '轉址登入失敗：' + (e.code || e.message); renderAuth(); });
     } catch (e) { console.warn('Firebase 載入失敗，改用本機模式', e); this.available = false; this.error = '目前離線，紀錄先存在這台裝置'; renderAuth(); }
   },
   ref(name){ return this.fb.doc(this.db, 'banban', name); },
@@ -867,10 +1049,22 @@ const Cloud = {
   pushStats(){ const fb = this.fb; this.w(fb.setDoc(this.ref('stats'), { stats: Object.fromEntries(S.stats) }, { merge: true })); },
   pushLessons(){ const fb = this.fb; const manual = Object.fromEntries([...S.lessons].filter(([id]) => !isSheet(id))); if (Object.keys(manual).length) this.w(fb.setDoc(this.ref('lessons'), { lessons: manual }, { merge: true })); },
   pushAll(){ this.pushStats(); this.pushLessons(); this.saveSettings(); },
-  async signIn(){
+  async signIn(method){
     if (!this.available) { alert('雲端元件還沒載入，請確認有網路後重新整理。'); return; }
-    try { const p = new this.fb.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' }); await this.fb.signInWithPopup(this.auth, p); }
-    catch (e) { if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') alert('登入失敗：' + (e.code || e.message)); }
+    this.error = '登入中…'; this.blocked = false; renderAuth();
+    try {
+      const p = new this.fb.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' });
+      if (method === 'redirect') { await this.fb.signInWithRedirect(this.auth, p); return; }
+      await this.fb.signInWithPopup(this.auth, p);
+      this.error = '';
+    } catch (e) {
+      const code = e.code || e.message || String(e);
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') this.error = '登入視窗被關掉了，再按一次。';
+      else if (code === 'auth/popup-blocked') { this.blocked = true; this.error = '瀏覽器擋掉了 Google 登入視窗。請先允許這個網站的彈出式視窗，再按一次「用 Google 登入」。'; }
+      else if (code === 'auth/unauthorized-domain') this.error = '這個網址還沒加進 Firebase 的 Authorized domains。';
+      else this.error = '登入失敗：' + code;
+    }
+    renderAuth();
   },
   async signOut(){ try { await this.fb.signOut(this.auth); } catch (e) {} },
 };
@@ -878,12 +1072,13 @@ function renderAuth(){
   const u = Cloud.user;
   const html = u
     ? `<span class="dot"></span><span>已登入 <b>${esc(u.email || u.displayName || '')}</b>${Cloud.ready ? '，紀錄會在各裝置同步' : '，連線中…'}${Cloud.error ? ' · ' + esc(Cloud.error) : ''}</span><button class="btn small" id="btnSignOut">登出</button>`
-    : `<span class="dot"></span><span>${Cloud.available ? '尚未登入，紀錄只存在這台裝置' : (Cloud.error || '雲端連線中…')}</span>${Cloud.available ? '<button class="btn small primary" id="btnSignIn">用 Google 登入</button>' : ''}`;
+    : `<span class="dot"></span><span>${Cloud.available ? (Cloud.error ? '<span style="color:var(--bad)">' + esc(Cloud.error) + '</span>' : '尚未登入，紀錄只存在這台裝置') : (Cloud.error || '雲端連線中…')}</span>${Cloud.available ? '<button class="btn small primary" id="btnSignIn">用 Google 登入</button>' : ''}${Cloud.available && Cloud.blocked ? '<button class="btn small" id="btnSignInRedirect">改用轉址登入</button>' : ''}`;
   for (const id of ['pickAuth', 'adminAuth']) {
     const el = $('#' + id); if (!el) continue;
     el.innerHTML = html; el.hidden = false; el.classList.toggle('on', !!(u && Cloud.ready));
-    const si = el.querySelector('#btnSignIn'), so = el.querySelector('#btnSignOut');
+    const si = el.querySelector('#btnSignIn'), so = el.querySelector('#btnSignOut'), sr = el.querySelector('#btnSignInRedirect');
     if (si) si.onclick = () => Cloud.signIn();
+    if (sr) sr.onclick = () => Cloud.signIn('redirect');
     if (so) so.onclick = () => { if (confirm('登出後這台裝置會回到只存本機的模式。確定？')) Cloud.signOut(); };
   }
 }
