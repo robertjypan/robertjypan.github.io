@@ -12,7 +12,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+Mono+TC&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/twkai.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+/* 標楷體：裝置有就用裝置的（Windows DFKai-SB、Mac BiauKai），沒有就載入全字庫正楷體（教育部標準字形，OFL 授權） */
+@font-face{font-family:"BanKai";src:local("DFKai-SB"),local("標楷體"),local("BiauKai"),local("TW-Kai"),local("全字庫正楷體"),url("fonts/twkai.woff2") format("woff2");font-display:swap}
 :root{
   --paper:#F1F5EC;
   --card:#FFFFFF;
@@ -27,7 +30,7 @@
   --bad:#C93D2E;
   --chip:#E7F0E9;
   --shadow:0 8px 24px rgba(31,59,48,.10);
-  --kai:"DFKai-SB","BiauKai","標楷體","TW-Kai","AR PL UKai TW","LXGW WenKai TC","LXGW WenKai Mono TC","KaiTi","STKaiti",serif;
+  --kai:"BanKai","DFKai-SB","BiauKai","標楷體","TW-Kai","AR PL UKai TW","KaiTi","STKaiti","LXGW WenKai TC",serif;
   --content:"LXGW WenKai TC","LXGW WenKai Mono TC","DFKai-SB","BiauKai","標楷體","TW-Kai","KaiTi",serif;
   --ui:-apple-system,"PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
 }
@@ -129,7 +132,7 @@ main{max-width:1080px;margin:0 auto;padding:0 16px 48px}
 .answer.n4{gap:8px}
 .answer.n4 .tian{width:clamp(66px,16vw,118px)}
 .answer.n4 .tian span{font-size:clamp(46px,11vw,86px)}
-.tian span{position:relative;font-family:var(--kai);font-size:clamp(66px,15vw,108px);line-height:1;color:var(--ink);animation:pop .28s cubic-bezier(.2,1.4,.4,1) both}
+.tian span{position:relative;font-family:var(--kai);font-weight:400;font-size:clamp(66px,15vw,108px);line-height:1;color:var(--ink);animation:pop .28s cubic-bezier(.2,1.4,.4,1) both}
 @keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
 .judge{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
 .stat-line{text-align:center;margin-top:12px}
@@ -202,11 +205,7 @@ details .stack{margin-top:12px}
 .score .num.bump{animation:bump .4s cubic-bezier(.2,1.6,.4,1)}
 @keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
 
-/* ---- special slices / effects ---- */
-.wheel-sp{font-family:var(--content);font-weight:700;font-size:19px;paint-order:stroke;stroke:rgba(0,0,0,.2);stroke-width:1.2px}
-.flash.plus{background:linear-gradient(135deg,#FFF3C4,#FFE082);color:#5a4200;border-color:#F3C948;font-size:34px}
-.flash.minus{background:#3b3b3b;color:#fff;border-color:#222;font-size:32px;animation:shake .5s ease both}
-@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-12px) rotate(-1.5deg)}40%{transform:translateX(12px) rotate(1.5deg)}60%{transform:translateX(-8px)}80%{transform:translateX(8px)}}
+/* ---- effects ---- */
 .flash.done{font-size:36px;padding:36px 20px}
 .flash.done .sub{font-size:18px;color:var(--ink-2);font-family:var(--ui);margin-top:8px}
 .flash.done .row{justify-content:center;margin-top:20px}
@@ -479,7 +478,7 @@ $('#modeBox').addEventListener('change', () => { $('#modeBox').querySelectorAll(
 $('#btnStart').onclick = () => {
   S.play.lessonIds = [...selected];
   S.play.weighted = $('input[name=mode]:checked').value === 'weighted';
-  S.play.recent = []; S.play.current = null; S.play.phase = 'idle';
+  S.play.recent = []; S.play.bag = null; S.play.current = null; S.play.phase = 'idle';
   S.session = { ok: 0, bad: 0, goal: Goal.value }; S.play.done = false; renderTally();
   buildPool();
   S.play.N = Math.max(4, Math.min(12, S.play.pool.length));
@@ -501,14 +500,38 @@ function buildPool(){
   S.play.pool = pool;
   if (S.play.current) { const fresh = pool.find(p => p.key === S.play.current.key); if (fresh) Object.assign(S.play.current, fresh); }
 }
+/* 抽題：牌堆制。每一輪牌堆裡每個詞至少 1 張，答錯多或沒練過的詞多放 1–2 張；
+   洗牌後保證同一個詞至少隔幾題才會再出現；整堆抽完才重洗，所以不會有詞一直被跳過或一直重複。 */
+function copiesOf(p){
+  if (!S.play.weighted) return 1;
+  const st = statOf(p.lid, p.wid), net = st.c - st.w;
+  if (st.c + st.w === 0) return 2;        // 沒練過：2 張
+  if (net <= -3) return 3;                // 錯很多：3 張
+  if (net <= -1) return 2;                // 錯比對多：2 張
+  return 1;                               // 其他：1 張
+}
+function buildBag(){
+  const pool = S.play.pool, bag = [];
+  for (const p of pool) for (let i = 0, n = copiesOf(p); i < n; i++) bag.push(p);
+  for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+  const gap = Math.min(5, Math.max(1, Math.floor(pool.length / 2)));
+  const out = [], rest = bag;
+  let tail = S.play.recent.slice(-gap);           // 上一堆最後幾題也算在間隔內
+  while (rest.length) {
+    let idx = rest.findIndex(p => !tail.includes(p.key)); if (idx < 0) idx = 0;
+    const p = rest.splice(idx, 1)[0]; out.push(p);
+    tail.push(p.key); if (tail.length > gap) tail.shift();
+  }
+  S.play.bag = out; S.play.bagSig = pool.map(p => p.key).join('|');
+}
 function pickWord(){
-  const all = S.play.pool; if (!all.length) return null;
-  let cand = all.filter(p => !S.play.recent.includes(p.key));
-  if (!cand.length) cand = all;
-  const ws = cand.map(p => S.play.weighted ? weightOf(p.lid, p.wid) : 1);
-  let r = Math.random() * ws.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < cand.length; i++) { r -= ws[i]; if (r <= 0) return cand[i]; }
-  return cand[cand.length - 1];
+  const pool = S.play.pool; if (!pool.length) return null;
+  const sig = pool.map(p => p.key).join('|');
+  if (!S.play.bag || !S.play.bag.length || S.play.bagSig !== sig) buildBag();
+  const gap = Math.min(5, Math.max(1, Math.floor(pool.length / 2)));
+  const tail = S.play.recent.slice(-gap);
+  let idx = S.play.bag.findIndex(p => !tail.includes(p.key)); if (idx < 0) idx = 0;
+  return S.play.bag.splice(idx, 1)[0];
 }
 function renderIdleCard(){ $('#qwrap').innerHTML = '<div class="empty idle-card">轉一下轉盤，題目會出現在這裡。</div>'; $('#scrPlay').classList.remove('has-q'); }
 function renderTally(bumpOk, bumpBad){
@@ -520,31 +543,21 @@ function renderTally(bumpOk, bumpBad){
   if (bumpOk) b($('#sOk')); if (bumpBad) b($('#sBad'));
 }
 
-function buildWheel(nWords){
-  const total = nWords + 2, slices = [];
-  const iPlus = Math.floor(total / 4), iMinus = Math.floor(total * 3 / 4);
-  let n = 0;
-  for (let i = 0; i < total; i++) slices.push(i === iPlus ? { type: 'plus' } : i === iMinus ? { type: 'minus' } : { type: 'word', n: ++n });
-  S.play.slices = slices; S.play.total = total;
-  const g = $('#wheelG'); const cx = 200, cy = 200, r = 192, slice = 360 / total;
+function buildWheel(N){
+  S.play.total = N;
+  const g = $('#wheelG'); const cx = 200, cy = 200, r = 192, slice = 360 / N;
   const pt = (a, rr) => [cx + rr * Math.cos(a * Math.PI / 180), cy + rr * Math.sin(a * Math.PI / 180)];
-  let out = '', ci = 0;
-  for (let i = 0; i < total; i++) {
+  let out = '';
+  for (let i = 0; i < N; i++) {
     const a0 = -90 + i * slice, a1 = a0 + slice, [x0, y0] = pt(a0, r), [x1, y1] = pt(a1, r);
-    const sp = slices[i].type;
-    const fill = sp === 'plus' ? '#FFD166' : sp === 'minus' ? '#3F3F3F' : COLORS[(ci++) % COLORS.length];
-    out += `<path d="M${cx} ${cy} L${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${slice > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z" fill="${fill}" stroke="#fff" stroke-width="2"/>`;
+    out += `<path d="M${cx} ${cy} L${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${slice > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z" fill="${COLORS[i % COLORS.length]}" stroke="#fff" stroke-width="2"/>`;
   }
-  for (let i = 0; i < total; i++) {
-    const mid = -90 + (i + 0.5) * slice, [tx, ty] = pt(mid, 135);
+  for (let i = 0; i < N; i++) {
+    const mid = -90 + (i + 0.5) * slice, [tx, ty] = pt(mid, 140);
     const m = ((mid % 360) + 360) % 360, rot = (m > 90 && m < 270) ? mid + 180 : mid;
-    const sp = slices[i].type;
-    const label = sp === 'plus' ? '免費+1' : sp === 'minus' ? '自動−1' : String(slices[i].n);
-    const cls = sp === 'word' ? 'wheel-num' : 'wheel-sp';
-    const color = sp === 'plus' ? '#5a4200' : '#fff';
-    out += `<text class="${cls}" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${color}" text-anchor="middle" dominant-baseline="central" transform="rotate(${rot.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)})">${label}</text>`;
+    out += `<text class="wheel-num" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle" dominant-baseline="central" transform="rotate(${rot.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)})">${i + 1}</text>`;
   }
-  for (let i = 0; i < total; i++) { const [px, py] = pt(-90 + i * slice, 186); out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4" fill="#fff" opacity=".9"/>`; }
+  for (let i = 0; i < N; i++) { const [px, py] = pt(-90 + i * slice, 186); out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4" fill="#fff" opacity=".9"/>`; }
   g.innerHTML = out;
   g.style.transform = `rotate(${S.play.rot}deg)`;
 }
@@ -618,16 +631,14 @@ function spin(){
   buildPool();
   if (!S.play.pool.length) { $('#hint').textContent = '這幾課還沒有生詞。'; return; }
   const total = S.play.total, slice = 360 / total, k = Math.floor(Math.random() * total);
-  const sp = S.play.slices[k];
-  let target = null;
-  if (sp.type === 'word') { target = pickWord(); if (!target) return; }
+  const target = pickWord(); if (!target) return;
   const jitter = (Math.random() - 0.5) * 0.7 * slice;
   const desired = ((-((k + 0.5) * slice + jitter)) % 360 + 360) % 360;
   const cur = ((S.play.rot % 360) + 360) % 360;
   const forward = (desired - cur + 360) % 360;
   const from = S.play.rot, tot = from + 360 * (4 + Math.floor(Math.random() * 2)) + forward;
   const D = reduced ? 900 : 4200 + Math.random() * 600;
-  S.play.phase = 'spinning'; S.play.current = target; S.play.landed = sp.type;
+  S.play.phase = 'spinning'; S.play.current = target;
   $('#btnSpin').disabled = true; $('#btnSpin').textContent = '轉動中…'; $('#hint').textContent = '';
   $('#qwrap').innerHTML = ''; $('#scrPlay').classList.remove('has-q');
   const g = $('#wheelG'), pointer = $('#pointer');
@@ -640,7 +651,7 @@ function spin(){
     if (idx !== lastIdx) { lastIdx = idx; tick(); pointer.classList.remove('tick'); void pointer.offsetWidth; pointer.classList.add('tick'); }
     if (t < 1) requestAnimationFrame(frame);
     else { S.play.rot = tot; sfx.land(); pointer.classList.remove('land'); void pointer.offsetWidth; pointer.classList.add('land');
-      if (sp.type === 'word') { S.play.phase = 'question'; showQuestion(); } else landSpecial(sp.type); }
+      S.play.phase = 'question'; showQuestion(); }
   }
   requestAnimationFrame(frame);
 }
@@ -648,21 +659,6 @@ $('#btnSpin').onclick = spin;
 function nextRound(delay){
   $('#btnSpin').textContent = '準備下一題…';
   setTimeout(() => { if (S.play.phase === 'idle' && !S.play.done && S.screen === 'play') spin(); }, delay);
-}
-function landSpecial(type){
-  S.play.phase = 'idle';
-  const [x, y] = FX.wheelCentre();
-  if (type === 'plus') {
-    S.session.ok++; renderTally(true, false); sfx.plus();
-    FX.burst(x, y, 140, ['#FFD166', '#FF9F1C', '#EF476F', '#06D6A0', '#118AB2', '#FFFFFF'], 8);
-    $('#qwrap').innerHTML = '<div class="card flash plus">🎉 免費 +1！</div>';
-    if (checkDone()) return;
-  } else {
-    S.session.ok = Math.max(0, S.session.ok - 1); renderTally(false, false); sfx.minus();
-    $('#qwrap').innerHTML = '<div class="card flash minus">😵 自動 −1……</div>';
-  }
-  $('#hint').textContent = '';
-  nextRound(1800);
 }
 function checkDone(){
   if (S.session.ok < (S.session.goal || 1)) return false;
@@ -700,7 +696,7 @@ function showAnswer(){
     <div class="lesson-tag">${esc(q.lessonName)}</div>
     ${q.sentence ? `<div class="sentence">${b.a}</div>` : ''}
     <div class="answer${[...q.word].length >= 4 ? ' n4' : ''}">${[...q.word].map((ch, i) => `<div class="tian"><span style="animation-delay:${i * 90}ms">${esc(ch)}</span></div>`).join('')}</div>
-    <div class="zy-line" style="text-align:center">${esc(q.zhuyin)}</div>
+    <div class="zy-line" style="text-align:center;font-family:var(--kai)">${esc(q.zhuyin)}</div>
     <div class="judge"><button class="btn ok big" id="btnOk">答對了</button><button class="btn bad big" id="btnBad">答錯了</button></div>
     <p class="stat-line muted">這個詞：答對 ${st.c} 次、答錯 ${st.w} 次</p>
     <div id="editBox" hidden></div>
@@ -736,7 +732,7 @@ async function judge(good){
   if (good) s.c++; else s.w++; s.t = Date.now(); doc.counts[q.wid] = s;
   if (good) S.session.ok++; else S.session.bad++; renderTally(good, !good);
   chime(good);
-  S.play.recent.push(q.key); const keep = Math.min(3, Math.max(0, S.play.pool.length - 1)); while (S.play.recent.length > keep) S.play.recent.shift();
+  S.play.recent.push(q.key); while (S.play.recent.length > 8) S.play.recent.shift();
   if (good) { const [x, y] = FX.wheelCentre(); FX.burst(x, y, 40, ['#06D6A0', '#FFD166', '#FFFFFF'], 5); }
   $('#qwrap').innerHTML = `<div class="card flash">${good ? '答對了，再來一題！' : '沒關係，下次會記得。'}</div>`;
   $('#scrPlay').classList.remove('has-q');
@@ -792,7 +788,7 @@ function renderLessonPane(){
       </div>
     </details>`}
     <div class="row" style="justify-content:space-between">
-      <span class="tag">每答對一次，這個詞出現的機會約打七折；每答錯一次約變 1.4 倍。</span>
+      <span class="tag">沒練過或答錯較多的詞，每輪會多出現 1～2 次；每個詞輪完一遍才重新洗牌。</span>
       <button class="btn small" id="btnResetStats">清除這課的答題紀錄</button>
     </div>`;
   $('#btnResetStats').onclick = async () => {
